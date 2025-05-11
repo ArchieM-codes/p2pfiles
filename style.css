@@ -1,0 +1,26 @@
+body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    margin: 20px;
+}
+
+#app {
+    display: inline-block;
+    margin-top: 20px;
+}
+
+input, button {
+    margin: 5px;
+    padding: 8px;
+    font-size: 16px;
+}
+
+progress {
+    width: 100%;
+    margin: 10px 0;
+}
+
+#status {
+    margin: 10px 0;
+    font-weight: bold;
+}
