@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>P2P File Sharing</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h2>P2P File Sharing App</h2>
+    <div id="app">
+        <div id="connection">
+            <p>Your Peer ID: <span id="peer-id">Loading...</span></p>
+            <input type="text" id="remote-id" placeholder="Enter peer ID to connect" />
+            <button id="connect-btn">Connect</button>
+        </div>
+
+        <div id="file-transfer" style="display: none;">
+            <input type="file" id="file-input" />
+            <button id="send-btn">Send File</button>
+            <p id="status">Status: Waiting for file...</p>
+            <progress id="progress-bar" value="0" max="100"></progress>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.4.7/peerjs.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
