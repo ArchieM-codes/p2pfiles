@@ -69,6 +69,10 @@ body {
     background-color: #f0f0f0;
 }
 
+#contact-list li.selected {
+    background-color: #cce5ff; /* Highlight selected contact */
+}
+
 #contact-list li span {
     flex-grow: 1;
 }
