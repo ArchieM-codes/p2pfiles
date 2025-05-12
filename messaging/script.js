@@ -117,9 +117,12 @@ function displayContacts() {
     contacts.forEach(contact => {
         const listItem = document.createElement('li');
         listItem.innerHTML = `
-            <span>${contact.contactId}</span>
-            <button class="delete-contact-btn" data-id="${contact.contactId}">Delete</button>
+            <span>${contact.displayName}</span>
+            <button class="rename-contact-btn" data-id="${contact.peerId}">Rename</button>
+            <button class="delete-contact-btn" data-id="${contact.peerId}">Delete</button>
         `;
+
+        listItem.classList.toggle('selected', currentContact && currentContact.peerId === contact.peerId);
 
         // Connect on click
         listItem.addEventListener('click', () => {
@@ -128,14 +131,22 @@ function displayContacts() {
             }
             connectToPeer(contact.peerId);
             currentContact = contact;
-            noPeerMessage.textContent = `Now connected to peer ${currentContact.contactId}.`;
+            noPeerMessage.textContent = `Now connected to peer ${contact.displayName}.`;
+            displayContacts();
+        });
+
+        // Rename button click
+        const renameButton = listItem.querySelector('.rename-contact-btn');
+        renameButton.addEventListener('click', (event) => {
+            event.stopPropagation(); // Prevent connection attempt
+            renameContact(contact.peerId);
         });
 
         // Delete button click
         const deleteButton = listItem.querySelector('.delete-contact-btn');
         deleteButton.addEventListener('click', (event) => {
             event.stopPropagation(); // Prevent connection attempt
-            deleteContact(contact.contactId);
+            deleteContact(contact.peerId);
         });
 
         contactList.appendChild(listItem);
@@ -143,7 +154,7 @@ function displayContacts() {
 }
 
 function addContact(contactId) {
-    if (contacts.find(c => c.contactId === contactId)) {
+    if (contacts.find(c => c.peerId === contactId)) {
         alert("Contact ID already exists.");
         return;
     }
@@ -154,17 +165,32 @@ function addContact(contactId) {
         return;
     }
 
-    const newContact = { contactId: contactId, peerId: contactId };
+    const displayName = prompt("Enter a display name for this contact:");
+    if (!displayName) return;
+
+    const newContact = { peerId: contactId, displayName: displayName };
     contacts.push(newContact);
     localStorage.setItem(CONTACTS_KEY, JSON.stringify(contacts));
     displayContacts();
 }
 
-function deleteContact(contactId) {
-    contacts = contacts.filter(contact => contact.contactId !== contactId);
+function renameContact(peerId) {
+    const newDisplayName = prompt("Enter a new display name:");
+    if (!newDisplayName) return;
+
+    const contact = contacts.find(c => c.peerId === peerId);
+    if (contact) {
+        contact.displayName = newDisplayName;
+        localStorage.setItem(CONTACTS_KEY, JSON.stringify(contacts));
+        displayContacts();
+    }
+}
+
+function deleteContact(peerId) {
+    contacts = contacts.filter(contact => contact.peerId !== peerId);
     localStorage.setItem(CONTACTS_KEY, JSON.stringify(contacts));
     displayContacts();
-    if (currentContact && currentContact.contactId === contactId) {
+    if (currentContact && currentContact.peerId === peerId) {
         currentContact = null;
     }
 }
@@ -271,6 +297,5 @@ window.onload = async function () {
         }
     });
 
-    // Initial Contact Display
     displayContacts();
 };
