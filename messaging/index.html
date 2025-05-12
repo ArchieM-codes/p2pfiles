@@ -4,6 +4,7 @@
   <title>Cool PeerJS Messenger</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 </head>
 <body>
   <div class="container">
@@ -19,6 +20,8 @@
       <div id="messages"></div>
       <textarea id="messageInput" placeholder="Type your message..."></textarea>
       <button id="sendButton">Send</button>
+      <input type="file" id="fileInput">
+      <button id="sendFileButton">Send File</button>
     </div>
   </div>
 
