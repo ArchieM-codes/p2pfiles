@@ -1,6 +1,6 @@
-// script.js
+// script.js - REVISED
 
-// UI elements
+// UI elements... (same as before)
 const myPeerIdDiv = document.getElementById('myPeerId');
 const remotePeerIdInput = document.getElementById('remotePeerId');
 const connectButton = document.getElementById('connectButton');
@@ -38,7 +38,7 @@ function sendMessage(message) {
     }
 
     const sanitizedMessage = DOMPurify.sanitize(message);
-    conn.send({type: 'chat', message: sanitizedMessage});
+    conn.send({ type: 'chat', message: sanitizedMessage }); // Explicitly send as object
     appendMessage(sanitizedMessage, 'outgoing');
     messageInput.value = '';
 }
@@ -55,7 +55,7 @@ function sendFile(file) {
         conn.send({
             type: 'file',
             name: file.name,
-            type: file.type,
+            fileType: file.type, // Use different name
             data: event.target.result
         });
         appendMessage(`Sending file: ${file.name}`, 'outgoing');
@@ -69,27 +69,35 @@ function sendFile(file) {
 }
 
 function handleData(data) {
-    if (data.type === 'chat') {
-        appendMessage(data.message, 'incoming');
-    } else if (data.type === 'file') {
-        const fileName = DOMPurify.sanitize(data.name);
-        const fileType = DOMPurify.sanitize(data.type);
+    console.log("Received data:", data); // Log EVERY incoming data packet
 
-        const blob = new Blob([data.data], {type: fileType});
-        const url = URL.createObjectURL(blob);
+    if (typeof data === 'object' && data !== null) { // Only process objects
+        if (data.type === 'chat') {
+            appendMessage(DOMPurify.sanitize(data.message), 'incoming');
+        } else if (data.type === 'file') {
+            const fileName = DOMPurify.sanitize(data.name);
+            const fileType = DOMPurify.sanitize(data.fileType);  // different name
 
-        const downloadLink = document.createElement('a');
-        downloadLink.href = url;
-        downloadLink.download = fileName;
-        downloadLink.innerText = `Received file: ${fileName}`;
+            const blob = new Blob([data.data], { type: fileType });
+            const url = URL.createObjectURL(blob);
 
-        appendMessage(downloadLink.outerHTML, 'incoming');
+            const downloadLink = document.createElement('a');
+            downloadLink.href = url;
+            downloadLink.download = fileName;
+            downloadLink.innerText = `Received file: ${fileName}`;
 
-        downloadLink.onload = function () {
-            URL.revokeObjectURL(url);
-        };
-    } else if (data.type === 'typing') {
-        setTypingIndicator(data.isTyping);
+            appendMessage(downloadLink.outerHTML, 'incoming');
+
+            downloadLink.onload = function () {
+                URL.revokeObjectURL(url);
+            };
+        } else if (data.type === 'typing') {
+            setTypingIndicator(data.isTyping);
+        } else {
+            console.warn("Unknown data type:", data);
+        }
+    } else {
+        console.warn("Received non-object data:", data);  //Catch any non-object data, report to console
     }
 }
 
@@ -117,7 +125,7 @@ window.onload = function () {
 
     connectButton.addEventListener('click', function () {
         const remotePeerId = remotePeerIdInput.value;
-        conn = peer.connect(remotePeerId, {reliable: true});
+        conn = peer.connect(remotePeerId, { reliable: true });
         isConnected = true;
         appendMessage('Connected!', 'outgoing');
 
@@ -150,7 +158,7 @@ window.onload = function () {
 
         const isTypingNow = messageInput.value.trim() !== "";
         if (isTypingNow !== isTyping) {
-            conn.send({type: 'typing', isTyping: isTypingNow});
+            conn.send({ type: 'typing', isTyping: isTypingNow });  //Object form
             isTyping = isTypingNow;
         }
     });
