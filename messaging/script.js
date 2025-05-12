@@ -1,5 +1,3 @@
-//HIIII
-
 const myPeerIdDiv = document.getElementById('myPeerId');
 const newContactIdInput = document.getElementById('new-contact-id');
 const addContactBtn = document.getElementById('add-contact-btn');
@@ -16,12 +14,10 @@ let isConnected = false;
 let currentContact = null;
 
 // Local storage keys
-const PEER_ID_KEY = 'myPeerId';
 const CONTACTS_KEY = 'contacts';
 const FRIEND_REQUESTS_KEY = 'friendRequests';
 
 // Load data from local storage
-let myPeerId = localStorage.getItem(PEER_ID_KEY) || null;
 let contacts = JSON.parse(localStorage.getItem(CONTACTS_KEY)) || [];
 let friendRequests = JSON.parse(localStorage.getItem(FRIEND_REQUESTS_KEY)) || [];
 
@@ -31,6 +27,38 @@ function generatePeerId() {
     const randomLetters = Array.from({ length: 3 }, () => String.fromCharCode(Math.floor(Math.random() * 52) + (Math.random() > 0.5 ? 65 : 97))).join('');
     const randomNumber2 = Math.floor(1000 + Math.random() * 9000);
     return `AMC-${randomNumber1}-${randomLetters}-${randomNumber2}`;
+}
+
+// Function to hash a string
+async function hashString(str) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(str);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashHex;
+}
+
+async function getOrCreatePeerId() {
+    try {
+        const ipResponse = await fetch('https://api.ipify.org?format=json');
+        const ipData = await ipResponse.json();
+        const ipAddress = ipData.ip;
+        const userAgent = navigator.userAgent;
+
+        const deviceHash = await hashString(ipAddress + userAgent);
+        let peerId = localStorage.getItem(deviceHash) || null;
+
+        if (!peerId) {
+            peerId = generatePeerId();
+            localStorage.setItem(deviceHash, peerId);
+        }
+
+        return peerId;
+    } catch (error) {
+        console.error("Error getting device ID:", error);
+        return generatePeerId(); // Fallback if IP or hashing fails
+    }
 }
 
 function appendMessage(message, type) {
@@ -121,10 +149,11 @@ function addContact(contactId) {
 
     // Send friend request to the peer instead of directly adding
     if (peer) {
-        const data = { type: 'friendRequest', peerId: myPeerId, contactId: peer.id };
+        const data = { type: 'friendRequest', peerId: peer.id, contactId: contactId }; //Swapped the values
         const tempConn = peer.connect(contactId, { reliable: true });
 
         tempConn.on('open', () => {
+            console.log("Friend request connection opened with:", contactId); // Log here
             tempConn.send(data);
             alert('Friend request sent!');
             tempConn.close();
@@ -133,6 +162,9 @@ function addContact(contactId) {
         tempConn.on('error', err => {
             console.error("Could not send friend request", err);
             alert("Could not send friend request.  Peer may be offline, or connection may be bad.");
+        });
+        tempConn.on('close', () => {  // Add this
+            console.log("Friend request connection closed with:", contactId);
         });
     } else {
         alert("Peer object not initialized. Please refresh the page.");
@@ -212,9 +244,8 @@ function declineFriendRequest(peerId) {
 }
 
 // Run on page load
-window.onload = function () {
-    // Generate a Peer ID and attempt to connect to the PeerJS server
-    myPeerId = myPeerId || generatePeerId();
+window.onload = async function () {
+    const peerId = await getOrCreatePeerId();
 
     const peerConfig = {
         host: '0.peerjs.com',
@@ -241,12 +272,11 @@ window.onload = function () {
         }
     };
 
-    peer = new Peer(myPeerId, peerConfig);
+    peer = new Peer(peerId, peerConfig);
 
     peer.on('open', function (id) {
         console.log("Peer object on 'open':", peer);
         myPeerIdDiv.innerText = 'My Peer ID: ' + id;
-        localStorage.setItem(PEER_ID_KEY, id);
         displayContacts();
         displayFriendRequests();
     });
@@ -257,6 +287,7 @@ window.onload = function () {
 
     // New Incoming connection
     peer.on('connection', function (connection) {
+        console.log("Incoming Connection object: ", connection)
         if (conn) {
             conn.close(); // Close current connection if any
         }
