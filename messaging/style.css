@@ -187,3 +187,19 @@ body {
     font-style: italic;
     color: #888;
 }
+#localVideo {
+    width: 200px;
+    height: 150px;
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    border: 1px solid black;
+    z-index: 1; /* Ensure it's on top */
+}
+
+#remoteVideo {
+    width: 100%;
+    height: 300px;
+    border: 1px solid black;
+    margin-bottom: 10px;
+}
