@@ -1,6 +1,4 @@
-// script.js
-
-// UI elements (same as before)
+// script.js - hhjuh
 const myPeerIdDiv = document.getElementById('myPeerId');
 const remotePeerIdInput = document.getElementById('remotePeerId');
 const connectButton = document.getElementById('connectButton');
@@ -15,6 +13,7 @@ let peer = null;
 let conn = null;
 let isConnected = false;
 let isTyping = false;
+let incomingConnectionEstablished = false; // Flag for single incoming connection
 
 function appendMessage(message, type) {
     const messageDiv = document.createElement('div');
@@ -38,7 +37,9 @@ function sendMessage(message) {
     }
 
     const sanitizedMessage = DOMPurify.sanitize(message);
-    conn.send({type: 'chat', message: sanitizedMessage});
+    const data = { type: 'chat', message: sanitizedMessage };
+    console.log("Sending data:", data); // Add console log
+    conn.send(data);
     appendMessage(sanitizedMessage, 'outgoing');
     messageInput.value = '';
 }
@@ -52,12 +53,14 @@ function sendFile(file) {
     const fileReader = new FileReader();
 
     fileReader.onload = function (event) {
-        conn.send({
+        const data = {
             type: 'file',
             name: file.name,
             fileType: file.type,
             data: event.target.result
-        });
+        };
+        console.log("Sending data:", data); // Add console log
+        conn.send(data);
         appendMessage(`Sending file: ${file.name}`, 'outgoing');
     };
 
@@ -69,8 +72,8 @@ function sendFile(file) {
 }
 
 function handleData(data) {
-    console.log("Received data:", data);  // Log EVERYTHING
-    console.log("Type of data:", typeof data);  // Check its type
+    console.log("Received data:", data);
+    console.log("Type of data:", typeof data);
 
     if (typeof data === 'object' && data !== null) {
         if (data.type === 'chat') {
@@ -79,7 +82,7 @@ function handleData(data) {
             const fileName = DOMPurify.sanitize(data.name);
             const fileType = DOMPurify.sanitize(data.fileType);
 
-            const blob = new Blob([data.data], {type: fileType});
+            const blob = new Blob([data.data], { type: fileType });
             const url = URL.createObjectURL(blob);
 
             const downloadLink = document.createElement('a');
@@ -102,16 +105,30 @@ function handleData(data) {
     }
 }
 
+function resetConnection() {
+    isConnected = false;
+    isTyping = false;
+    conn = null;
+    incomingConnectionEstablished = false;
+}
+
 window.onload = function () {
     peer = new Peer();
 
     peer.on('open', function (id) {
-        console.log("Peer object on 'open':", peer);  // Log Peer Object
+        console.log("Peer object on 'open':", peer);
         myPeerIdDiv.innerText = 'My Peer ID: ' + id;
     });
 
     peer.on('connection', function (connection) {
-        console.log("Incoming connection:", connection);  // Log Connection Object
+        if (incomingConnectionEstablished) {
+            console.warn("Ignoring duplicate incoming connection");
+            connection.close();
+            return;
+        }
+        incomingConnectionEstablished = true;
+
+        console.log("Incoming connection:", connection);
         conn = connection;
         isConnected = true;
         appendMessage('Connected!', 'incoming');
@@ -121,19 +138,30 @@ window.onload = function () {
         });
 
         conn.on('close', function () {
-            isConnected = false;
+            console.log("Connection closed by peer:", connection.peer); // Debug log
             appendMessage('Connection closed', 'incoming');
+            resetConnection(); // Reset all flags
         });
 
-        conn.on('open', function() {
-            console.log("Connection 'open' event fired"); // Log 'open' event
-            conn.send({type: 'chat', message: 'TEST MESSAGE - connection established!'});
+        conn.on('open', function () {
+            console.log("Connection 'open' event fired");
+            conn.send({ type: 'chat', message: 'TEST MESSAGE - connection established!' });
         });
     });
 
     connectButton.addEventListener('click', function () {
         const remotePeerId = remotePeerIdInput.value;
-        conn = peer.connect(remotePeerId, {reliable: true});
+
+        // Close the existing connection if any
+        if (conn) {
+            console.log("Closing existing connection to:", conn.peer); // Debug log
+            conn.close();
+        }
+
+        // Reset flag before connecting
+        incomingConnectionEstablished = false;
+
+        conn = peer.connect(remotePeerId, { reliable: true });
         isConnected = true;
         appendMessage('Connected!', 'outgoing');
 
@@ -142,12 +170,13 @@ window.onload = function () {
         });
 
         conn.on('close', function () {
-            isConnected = false;
+            console.log("Connection closed by peer:", remotePeerId); // Debug log
             appendMessage('Connection closed', 'outgoing');
+            resetConnection(); // Reset all flags
         });
-        conn.on('open', function() {
-            console.log("Connection 'open' event fired"); // Log 'open' event
-            conn.send({type: 'chat', message: 'TEST MESSAGE - connection established!'});
+        conn.on('open', function () {
+            console.log("Connection 'open' event fired");
+            conn.send({ type: 'chat', message: 'TEST MESSAGE - connection established!' });
         });
     });
 
@@ -170,7 +199,7 @@ window.onload = function () {
 
         const isTypingNow = messageInput.value.trim() !== "";
         if (isTypingNow !== isTyping) {
-            conn.send({type: 'typing', isTyping: isTypingNow});
+            conn.send({ type: 'typing', isTyping: isTypingNow });
             isTyping = isTypingNow;
         }
     });
