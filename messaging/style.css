@@ -183,27 +183,3 @@ body {
     font-style: italic;
     color: #888;
 }
-
-/* Friend Requests */
-#friend-requests {
-    padding: 15px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-    display: flex;
-    flex-direction: column;
-}
-
-#friend-request-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    overflow-y: auto; /* Scrollable friend requests list */
-    max-height: 100px; /* Limit friend requests list height */
-}
-
-#friend-request-list li {
-    padding: 10px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
