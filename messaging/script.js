@@ -24,7 +24,10 @@ let friendRequests = JSON.parse(localStorage.getItem(FRIEND_REQUESTS_KEY)) || []
 // Function to generate a random Peer ID
 function generatePeerId() {
     const randomNumber1 = Math.floor(1000 + Math.random() * 9000);
-    const randomLetters = Array.from({ length: 3 }, () => String.fromCharCode(Math.floor(Math.random() * 52) + (Math.random() > 0.5 ? 65 : 97))).join('');
+    const randomLetters = Array.from({ length: 3 }, () => {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        return chars.charAt(Math.floor(Math.random() * chars.length));
+    }).join('');
     const randomNumber2 = Math.floor(1000 + Math.random() * 9000);
     return `AMC-${randomNumber1}-${randomLetters}-${randomNumber2}`;
 }
@@ -61,6 +64,16 @@ async function getOrCreatePeerId() {
     }
 }
 
+// Utility function to encode a string to UTF-8
+function encodeUTF8(str) {
+    return new TextEncoder().encode(str);
+}
+
+// Utility function to decode a UTF-8 byte array to string
+function decodeUTF8(bytes) {
+    return new TextDecoder().decode(bytes);
+}
+
 function appendMessage(message, type) {
     const messageDiv = document.createElement('div');
     messageDiv.classList.add('message', type);
@@ -79,7 +92,8 @@ function sendMessage(message) {
     }
 
     const sanitizedMessage = DOMPurify.sanitize(message);
-    conn.send({ type: 'chat', message: sanitizedMessage });
+    const encodedMessage = encodeUTF8(sanitizedMessage);  // Encode the message
+    conn.send({ type: 'chat', message: encodedMessage });
     appendMessage(sanitizedMessage, 'outgoing');
     messageInput.value = '';
 }
@@ -89,7 +103,9 @@ function handleData(data) {
 
     if (typeof data === 'object' && data !== null) {
         if (data.type === 'chat') {
-            appendMessage(DOMPurify.sanitize(data.message), 'incoming');
+            // Decode the message
+            const decodedMessage = decodeUTF8(data.message);
+            appendMessage(DOMPurify.sanitize(decodedMessage), 'incoming');
         } else if (data.type === 'friendRequest') {
             // Handle friend request
             const newRequest = { peerId: data.peerId, contactId: data.contactId };
@@ -141,7 +157,7 @@ function addContact(contactId) {
         return;
     }
 
-    const peerIdRegex = /^AMC-\d{4}-[A-Za-z]{3}-\d{4}$/;
+    const peerIdRegex = /^AMC-\d{4}-[A-Za-z0-9]{3}-\d{4}$/;
     if (!peerIdRegex.test(contactId)) {
         alert("Invalid Contact ID format. Use AMC-XXXX-XXX-XXXX.");
         return;
