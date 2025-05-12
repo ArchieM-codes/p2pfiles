@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Peer Group Chat</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="groups.css">
+</head>
+<body>
+    <div id="group-app">
+        <div id="group-header">
+            <h1>Peer Group Chat</h1>
+            <p>My Peer ID: <span id="group-my-peer-id"></span></p>
+        </div>
+
+        <div id="group-main">
+            <div id="group-management">
+                <h2>Group Management</h2>
+                <input type="text" id="group-id-input" placeholder="Enter Group ID to Join/Create">
+                <button id="create-group-btn">Create Group</button>
+                <button id="join-group-btn">Join Group</button>
+
+                <h3>Members:</h3>
+                <ul id="member-list">
+                    <!-- Members will appear here -->
+                </ul>
+
+                <h3>Admin Actions:</h3>
+                <input type="text" id="target-user-id" placeholder="Enter User ID">
+                <button id="assign-admin-btn">Assign Admin</button>
+                <button id="kick-user-btn">Kick User</button>
+                <button id="ban-user-btn">Ban User</button>
+            </div>
+
+            <div id="group-chat">
+                <h2>Group Chat</h2>
+                <div id="group-messages">
+                    <!-- Group messages will appear here -->
+                </div>
+                <div id="group-input">
+                    <input type="text" id="group-message-input" placeholder="Type your message...">
+                    <button id="send-group-message-btn">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
+    <script src="https://archiem-codes.github.io/p2pfiles/messaging/peerjs-groups.min.js"></script> <!-- Add path if necessary -->
+    <script src="groups.js"></script>
+</body>
+</html>
