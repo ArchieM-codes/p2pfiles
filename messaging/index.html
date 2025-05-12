@@ -1,36 +1,47 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Cool PeerJS Messenger</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2P Chat</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css">
     <link rel="stylesheet" href="style.css">
-    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dompurify@2.4.0/dist/purify.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsencrypt/3.3.2/jsencrypt.min.js"></script>
 </head>
 <body>
-<div class="container">
-    <h1>Cool PeerJS Messenger</h1>
-
-    <div class="setup">
-        <div id="myPeerId"></div>
-        <input type="text" id="remotePeerId" placeholder="Enter Peer ID to Connect">
-        <button id="connectButton">Connect</button>
-    </div>
-
-    <div class="chat-area">
-        <div id="messages"></div>
-        <textarea id="messageInput" placeholder="Type your message..."></textarea>
-        <div class="indicator-area">
-            <span id="typingIndicator"></span>
-            <span id="messageStatus"></span>
+    <div id="app-container">
+        <div id="header">
+            <h1>P2P Chat</h1>
         </div>
-        <button id="sendButton">Send</button>
-        <input type="file" id="fileInput">
-        <button id="sendFileButton">Send File</button>
-    </div>
-</div>
 
-<script src="script.js"></script>
+        <div id="contacts-container">
+            <h2>Contacts</h2>
+            <ul id="contact-list">
+                <!-- Contacts will be dynamically added here -->
+            </ul>
+            <div id="add-contact-section">
+                <input type="text" id="new-contact-id" placeholder="Enter Contact ID">
+                <button id="add-contact-btn">Add Contact</button>
+            </div>
+        </div>
+
+        <div id="chat-container">
+            <div id="messages">
+                <!-- Messages will be displayed here -->
+            </div>
+            <div id="input-area">
+                <input type="text" id="messageInput" placeholder="Type a message...">
+                <button id="sendButton">Send</button>
+            </div>
+        </div>
+
+        <div id="peer-info">
+            <div id="myPeerId"></div>
+        </div>
+        <div id = "no-peer-message">No peer selected</div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/2.3.3/purify.min.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
