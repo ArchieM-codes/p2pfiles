@@ -1,393 +1,157 @@
-// script.js - UPDATED
+// script.js
 
 // UI elements
-const myPeerIdDiv      = document.getElementById('myPeerId');
-const remotePeerIdInput= document.getElementById('remotePeerId');
-const connectButton    = document.getElementById('connectButton');
-const messagesDiv      = document.getElementById('messages');
-const messageInput     = document.getElementById('messageInput');
-const sendButton       = document.getElementById('sendButton');
-const fileInput        = document.getElementById('fileInput');
-const sendFileButton   = document.getElementById('sendFileButton');
-const typingIndicator  = document.getElementById('typingIndicator');
-const messageStatus    = document.getElementById('messageStatus');
+const myPeerIdDiv = document.getElementById('myPeerId');
+const remotePeerIdInput = document.getElementById('remotePeerId');
+const connectButton = document.getElementById('connectButton');
+const messagesDiv = document.getElementById('messages');
+const messageInput = document.getElementById('messageInput');
+const sendButton = document.getElementById('sendButton');
+const fileInput = document.getElementById('fileInput');
+const sendFileButton = document.getElementById('sendFileButton');
+const typingIndicator = document.getElementById('typingIndicator');
 
-let peer            = null;
-let conn            = null;
-let isConnected     = false;
-let isTyping        = false;
+let peer = null;
+let conn = null;
+let isConnected = false;
+let isTyping = false;
 
-// Handshake state
-let isInitiator     = false;
-let remotePublicKey = null;
-let sharedSecret    = null;
-let keyExchangeDone = false; // Safeguard for handling multiple handshakes
+function appendMessage(message, type) {
+    const messageDiv = document.createElement('div');
+    messageDiv.classList.add('message', type);
 
-// RSA keys for key-exchange
-let publicKey, privateKey;
+    const timestamp = new Date().toLocaleTimeString();
+    messageDiv.innerHTML = `<span class="timestamp">${timestamp}</span> ${message}`;
 
-function initialize() {
-  const crypt = new JSEncrypt({ default_key_size: 2048 });
-  crypt.getKey();
-  publicKey  = crypt.getPublicKey();
-  privateKey = crypt.getPrivateKey();
-  console.log("RSA keypair ready.");
+    messagesDiv.appendChild(messageDiv);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
-function sanitize(text) {
-  return DOMPurify.sanitize(text);
+function setTypingIndicator(isTyping) {
+    typingIndicator.innerText = isTyping ? "Peer is typing..." : "";
 }
 
-function appendMessage(html, type) {
-  const d = document.createElement('div');
-  d.classList.add('message', type);
-  d.innerHTML = html;
-  messagesDiv.appendChild(d);
-  messagesDiv.scrollTop = messagesDiv.scrollHeight;
-}
+function sendMessage(message) {
+    if (!isConnected || !conn) {
+        alert("Not connected!");
+        return;
+    }
 
-function setMessageStatus(s) {
-  messageStatus.innerText = s;
-}
-
-function setTypingIndicator(flag) {
-  typingIndicator.innerText = flag ? "Peer is typing…" : "";
-}
-
-function generateAESKey() {
-  return CryptoJS.lib.WordArray.random(32).toString(); // 256-bit
-}
-
-function encryptMessage(plain) {
-  if (!sharedSecret) return null;
-  return CryptoJS.AES.encrypt(plain, sharedSecret).toString();
-}
-
-function decryptMessage(cipher) {
-  if (!sharedSecret) return null;
-  try {
-    const bytes = CryptoJS.AES.decrypt(cipher, sharedSecret);
-    return bytes.toString(CryptoJS.enc.Utf8) || null;
-  } catch {
-    return null;
-  }
-}
-
-// QUEUE any chat/file/typing until handshake done
-const outboundQueue = [];
-
-function flushQueue() {
-  while (sharedSecret && outboundQueue.length) {
-    const item = outboundQueue.shift();
-    conn.send(item);
-  }
-}
-
-// SEND helpers
-function sendEncrypted(data) {
-  if (!sharedSecret) {
-    outboundQueue.push(data);
-  } else {
-    conn.send(data);
-  }
-}
-
-function sendMessage(text) {
-  if (!isConnected) {
-    appendMessage("Error: Not connected.", "error");
-    return;
-  }
-  const sanitized = sanitize(text);
-  const cipher = encryptMessage(sanitized);
-  if (!cipher) {
-    appendMessage("Error: Secure connection not established.", "error");
-    return;
-  }
-  conn.send(cipher);
-  appendMessage(sanitized, 'outgoing');
-  messageInput.value = '';
-  setMessageStatus("Message sent");
-  setTimeout(()=> setMessageStatus(""), 3000);
+    const sanitizedMessage = DOMPurify.sanitize(message);
+    conn.send({type: 'chat', message: sanitizedMessage});
+    appendMessage(sanitizedMessage, 'outgoing');
+    messageInput.value = '';
 }
 
 function sendFile(file) {
-  if (!isConnected) {
-    appendMessage("Error: Not connected.", "error");
-    return;
-  }
-  if (!sharedSecret) {
-    appendMessage("Error: Secure connection not established.", "error");
-    return;
-  }
+    if (!isConnected || !conn) {
+        alert("Not connected!");
+        return;
+    }
 
-  const reader = new FileReader();
-  reader.onload = e => {
-    conn.send({
-      file: true,
-      name: file.name,
-      type: file.type,
-      data: e.target.result
-    });
-    appendMessage(`Sending file: ${file.name}`, 'outgoing');
-    setMessageStatus("File sent");
-    setTimeout(()=> setMessageStatus(""), 3000);
-  };
-  reader.onerror = () => appendMessage("Error reading file.", "error");
-  reader.readAsArrayBuffer(file);
+    const fileReader = new FileReader();
+
+    fileReader.onload = function (event) {
+        conn.send({
+            type: 'file',
+            name: file.name,
+            type: file.type,
+            data: event.target.result
+        });
+        appendMessage(`Sending file: ${file.name}`, 'outgoing');
+    };
+
+    fileReader.onerror = function (error) {
+        alert("Error reading file.");
+    };
+
+    fileReader.readAsArrayBuffer(file);
 }
 
-// HANDLER
 function handleData(data) {
-  if (keyExchangeDone) { // Extra protection against double-handling after handshake
-    console.warn("Ignoring data after key exchange complete:", data);
-    return;
-  }
+    if (data.type === 'chat') {
+        appendMessage(data.message, 'incoming');
+    } else if (data.type === 'file') {
+        const fileName = DOMPurify.sanitize(data.name);
+        const fileType = DOMPurify.sanitize(data.type);
 
-  // 1) PUBLIC KEY arrival
-  if (data.publicKey) {
-    console.log("▶️ Received PUBLIC KEY");
-    remotePublicKey = data.publicKey;
+        const blob = new Blob([data.data], {type: fileType});
+        const url = URL.createObjectURL(blob);
 
-    if (isInitiator && !sharedSecret) {
-      // Initiator now generates AES key, sends encryptedSecret, and sets sharedSecret
-      const aesKey = generateAESKey();
-      sharedSecret = aesKey;
-      console.log("🔐 [Initiator] Generated AES key:", aesKey);
+        const downloadLink = document.createElement('a');
+        downloadLink.href = url;
+        downloadLink.download = fileName;
+        downloadLink.innerText = `Received file: ${fileName}`;
 
-      const enc = new JSEncrypt();
-      enc.setPublicKey(remotePublicKey);
-      const encryptedSecret = enc.encrypt(aesKey);
+        appendMessage(downloadLink.outerHTML, 'incoming');
 
-      conn.send({ encryptedSecret });
-      appendMessage("Secure Connection Established!", "status");
-      console.log("▶️ Sent ENCRYPTED SECRET to peer");
-      keyExchangeDone = true;
-      flushQueue();
+        downloadLink.onload = function () {
+            URL.revokeObjectURL(url);
+        };
+    } else if (data.type === 'typing') {
+        setTypingIndicator(data.isTyping);
     }
-    return;
-  }
-
-  // 2) ENCRYPTED SECRET arrival
-  if (data.encryptedSecret) {
-    console.log("▶️ Received ENCRYPTED SECRET");
-    const dec = new JSEncrypt();
-    dec.setPrivateKey(privateKey);
-
-    const aesKey = dec.decrypt(data.encryptedSecret);
-    if (aesKey) {
-      sharedSecret = aesKey;
-      console.log("🔐 [Receiver] Decrypted AES key:", aesKey);
-      appendMessage("Secure Connection Established!", "status");
-      keyExchangeDone = true;
-      flushQueue();
-    } else {
-      console.error("Failed to decrypt shared secret");
-      appendMessage("Error: Secure connection failed.", "error");
-    }
-    return;
-  }
-
-  // 3) Everything else must wait for sharedSecret
-  if (!sharedSecret) {
-    // block chat/file until secure
-    if (data.typing) {
-      // you could queue typing if you want
-    } else {
-      appendMessage("Error: Cannot read message. Secure connection not established.", "error");
-    }
-    return;
-  }
-
-  // 4) CHAT TEXT
-  if (typeof data === 'string') {
-    const txt = decryptMessage(data);
-    if (txt) {
-      appendMessage(sanitize(txt), 'incoming');
-    } else {
-      appendMessage("Error: Failed to decrypt message.", "error");
-    }
-    return;
-  }
-
-  // 5) FILE
-  if (data.file) {
-    const name = sanitize(data.name);
-    const type = sanitize(type);
-    const blob = new Blob([data.data], { type });
-    const url  = URL.createObjectURL(blob);
-
-    const a = document.createElement('a');
-    a.href     = url;
-    a.download = name;
-    a.innerText= `Received file: ${name} (${type})`;
-    appendMessage(a.outerHTML, 'incoming');
-
-    a.onload = () => URL.revokeObjectURL(url);
-    return;
-  }
-
-  // 6) TYPING
-  if (data.typing === true || data.typing === false) {
-    setTypingIndicator(data.typing);
-    return;
-  }
 }
 
-// KEY-EXCHANGE: send our publicKey
-function sendPublicKey() {
-  conn.send({ publicKey });
-  console.log("▶️ Sent PUBLIC KEY");
-}
+window.onload = function () {
+    peer = new Peer();
 
-// CONNECT logic
-function connectToPeer(remoteId) {
-  // CLOSE any prior connection, and reset state
-  if (conn && conn.open) {
-    console.warn("Closing old connection to", conn.peer);
-    conn.close();
-    resetConnection();
-  }
-
-  isInitiator     = true;
-  remotePublicKey = null;
-  sharedSecret    = null;
-  outboundQueue.length = 0;
-  keyExchangeDone = false;  // Reset flag
-
-  conn = peer.connect(remoteId, { reliable: true });
-  conn.on('open', () => {
-    console.log("📡 Connected to:", remoteId);
-    appendMessage("Connected!", 'outgoing');
-    isConnected = true;
-    sendPublicKey();
-  });
-
-  conn.on('data', handleData);
-  conn.on('close', () => {
-    console.log("Connection closed");
-    appendMessage("Connection closed", 'outgoing');
-    resetConnection();
-  });
-  conn.on('error', err => {
-    console.error("Connection error:", err);
-    appendMessage("Error: "+err, 'error');
-    resetConnection();
-  });
-}
-
-function resetConnection() {
-  console.warn("Resetting connection state");
-  isConnected     = false;
-  sharedSecret    = null;
-  remotePublicKey = null;
-  isInitiator     = false;
-  outboundQueue.length = 0;
-  keyExchangeDone = false; // Add this line
-}
-
-// ONE connection handler at a time
-let haveIncoming = false;
-
-// PAGE LOAD
-window.onload = () => {
-  initialize();
-
-  // use static STUN/TURN
-  const iceServers = [
-    { urls: [ "stun:eu-turn4.xirsys.com" ] },
-    {
-      username: "vXp0ehXgRlCJeYdQBR4hjAdVn42ttLfds4jTAVrRmD5RTceXb9qp-sCf1PEw5eWiAAAAAGggndthcmNoaWVtdG9w",
-      credential: "fab9d62a-2e66-11f0-b4dc-0242ac140004",
-      urls: [
-        "turn:eu-turn4.xirsys.com:80?transport=udp",
-        "turn:eu-turn4.xirsys.com:3478?transport=udp",
-        "turn:eu-turn4.xirsys.com:80?transport=tcp",
-        "turn:eu-turn4.xirsys.com:3478?transport=tcp",
-        "turns:eu-turn4.xirsys.com:443?transport=tcp",
-        "turns:eu-turn4.xirsys.com:5349?transport=tcp"
-      ]
-    }
-  ];
-
-  peer = new Peer(undefined, {
-    config: { iceServers }
-  });
-
-  peer.on('open', id => {
-    console.log("🌐 My peer ID:", id);
-    myPeerIdDiv.innerText = "My Peer ID: " + id;
-  });
-
-  peer.on('connection', connection => {
-    if (haveIncoming) {  // Only accept the FIRST incoming connection
-      console.warn("Ignoring duplicate incoming connection from", connection.peer);
-      connection.close();  // Drop the connection!
-      return;
-    }
-    haveIncoming = true;  // Got our connection
-
-    // We’re the *receiver*
-    isInitiator     = false;
-    remotePublicKey = null;
-    sharedSecret    = null;
-    outboundQueue.length = 0;
-    keyExchangeDone = false;  // Reset flag
-
-    conn = connection;
-    console.log("📡 Incoming connection from:", conn.peer);
-    appendMessage("Connected!", 'incoming');
-    isConnected = true;
-
-    sendPublicKey();  // reply with our publicKey
-
-    conn.on('data', handleData);
-    conn.on('close', () => {
-      console.log("Connection closed");
-      appendMessage("Connection closed", 'incoming');
-      resetConnection();
-      haveIncoming = false; // Allow future connections
+    peer.on('open', function (id) {
+        myPeerIdDiv.innerText = 'My Peer ID: ' + id;
     });
-    conn.on('error', err => {
-      console.error("Connection error:", err);
-      appendMessage("Error: " + err, 'error');
-      resetConnection();
-      haveIncoming = false; // Allow future connections
+
+    peer.on('connection', function (connection) {
+        conn = connection;
+        isConnected = true;
+        appendMessage('Connected!', 'incoming');
+
+        conn.on('data', function (data) {
+            handleData(data);
+        });
+
+        conn.on('close', function () {
+            isConnected = false;
+            appendMessage('Connection closed', 'incoming');
+        });
     });
-  });
 
-  // UI hooks
-  connectButton.addEventListener('click', () => {
-    const rid = remotePeerIdInput.value.trim();
-    if (rid) connectToPeer(rid);
-  });
+    connectButton.addEventListener('click', function () {
+        const remotePeerId = remotePeerIdInput.value;
+        conn = peer.connect(remotePeerId, {reliable: true});
+        isConnected = true;
+        appendMessage('Connected!', 'outgoing');
 
-  sendButton.addEventListener('click', () => {
-    const txt = messageInput.value.trim();
-    if (txt) sendMessage(txt);
-  });
+        conn.on('data', function (data) {
+            handleData(data);
+        });
 
-  sendFileButton.addEventListener('click', () => {
-    const f = fileInput.files[0];
-    if (f) sendFile(f);
-    else appendMessage("Error: Please select a file.", "error");
-  });
+        conn.on('close', function () {
+            isConnected = false;
+            appendMessage('Connection closed', 'outgoing');
+        });
+    });
 
-  messageInput.addEventListener('input', () => {
-    if (!isConnected || !conn || !sharedSecret) return;
-    const nowTyping = messageInput.value.trim() !== "";
-    if (nowTyping && !isTyping) {
-      sendEncrypted({ typing: true });
-      isTyping = true;
-    }
-    if (!nowTyping && isTyping) {
-      sendEncrypted({ typing: false });
-      isTyping = false;
-    }
-  });
+    sendButton.addEventListener('click', function () {
+        const message = messageInput.value;
+        if (message.trim() !== '') {
+            sendMessage(message);
+        }
+    });
 
-  peer.on('error', err => {
-    console.error("Peer error:", err);
-    alert("An error occurred: " + err);
-    resetConnection();
-  });
+    sendFileButton.addEventListener('click', function () {
+        const file = fileInput.files[0];
+        if (file) {
+            sendFile(file);
+        }
+    });
+
+    messageInput.addEventListener('input', function () {
+        if (!isConnected || !conn) return;
+
+        const isTypingNow = messageInput.value.trim() !== "";
+        if (isTypingNow !== isTyping) {
+            conn.send({type: 'typing', isTyping: isTypingNow});
+            isTyping = isTypingNow;
+        }
+    });
 };
