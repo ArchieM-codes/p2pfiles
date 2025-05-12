@@ -47,12 +47,19 @@
     padding: 8px;
 }
 
-#group-input button {
+/* Styled Buttons */
+button {
     padding: 8px 15px;
     background-color: #007bff;
     color: white;
     border: none;
     cursor: pointer;
+    border-radius: 5px; /* Rounded corners */
+    transition: background-color 0.3s; /* Smooth transition */
+}
+
+button:hover {
+    background-color: #0056b3; /* Darker color on hover */
 }
 
 #member-list {
