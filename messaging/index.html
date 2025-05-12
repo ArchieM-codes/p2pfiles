@@ -19,14 +19,8 @@
                 <!-- Contacts will be dynamically added here -->
             </ul>
             <div id="add-contact-section">
-                <input type="text" id="new-contact-id" placeholder="AMC-XXXX-XXX-XXXX" pattern="AMC-\d{4}-[A-Za-z]{3}-\d{4}" title="Format: AMC-1234-AbC-5678">
+                <input type="text" id="new-contact-id" placeholder="AMC-XXXX-XXX-XXXX" pattern="AMC-\d{4}-[A-Za-z0-9]{3}-\d{4}" title="Format: AMC-1234-AbC-5678">
                 <button id="add-contact-btn">Add Contact</button>
-            </div>
-            <div id="friend-requests">
-                <h2>Friend Requests</h2>
-                <ul id="friend-request-list">
-                    <!-- Friend requests will be displayed here -->
-                </ul>
             </div>
         </div>
 
@@ -37,6 +31,11 @@
             <div id="input-area">
                 <input type="text" id="messageInput" placeholder="Type a message...">
                 <button id="sendButton">Send</button>
+            </div>
+             <!-- Direct Messaging Feature -->
+             <div id="dm-area">
+                <input type="text" id="dmInput" placeholder="Type a direct message...">
+                <button id="dmSendButton">Send DM</button>
             </div>
         </div>
 
