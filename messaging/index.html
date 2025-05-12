@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>P2P Chat</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css">
     <link rel="stylesheet" href="style.css">
@@ -19,7 +19,7 @@
                 <!-- Contacts will be dynamically added here -->
             </ul>
             <div id="add-contact-section">
-                <input type="text" id="new-contact-id" placeholder="Enter Contact ID">
+                <input type="text" id="new-contact-id" placeholder="AMC-XXXX-XXX-XXXX" pattern="AMC-\d{4}-[A-Za-z]{3}-\d{4}" title="Format: AMC-1234-AbC-5678">
                 <button id="add-contact-btn">Add Contact</button>
             </div>
         </div>
@@ -37,7 +37,7 @@
         <div id="peer-info">
             <div id="myPeerId"></div>
         </div>
-        <div id = "no-peer-message">No peer selected</div>
+        <div id="no-peer-message">No peer selected</div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
