@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Cool PeerJS Messenger</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>Cool PeerJS Messenger</h1>
+
+    <div class="setup">
+      <div id="myPeerId"></div>
+      <input type="text" id="remotePeerId" placeholder="Enter Peer ID to Connect">
+      <button id="connectButton">Connect</button>
+    </div>
+
+    <div class="chat-area">
+      <div id="messages"></div>
+      <textarea id="messageInput" placeholder="Type your message..."></textarea>
+      <button id="sendButton">Send</button>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
