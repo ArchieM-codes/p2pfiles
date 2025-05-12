@@ -1,4 +1,4 @@
-//Main script
+//HIIII
 
 const myPeerIdDiv = document.getElementById('myPeerId');
 const newContactIdInput = document.getElementById('new-contact-id');
@@ -8,14 +8,22 @@ const messagesDiv = document.getElementById('messages');
 const messageInput = document.getElementById('messageInput');
 const sendButton = document.getElementById('sendButton');
 const noPeerMessage = document.getElementById("no-peer-message");
+const friendRequestList = document.getElementById('friend-request-list');
 
 let peer = null;
 let conn = null;
 let isConnected = false;
 let currentContact = null;
 
-// Contacts are stored in localStorage
-let contacts = JSON.parse(localStorage.getItem('contacts')) || [];
+// Local storage keys
+const PEER_ID_KEY = 'myPeerId';
+const CONTACTS_KEY = 'contacts';
+const FRIEND_REQUESTS_KEY = 'friendRequests';
+
+// Load data from local storage
+let myPeerId = localStorage.getItem(PEER_ID_KEY) || null;
+let contacts = JSON.parse(localStorage.getItem(CONTACTS_KEY)) || [];
+let friendRequests = JSON.parse(localStorage.getItem(FRIEND_REQUESTS_KEY)) || [];
 
 // Function to generate a random Peer ID
 function generatePeerId() {
@@ -54,6 +62,12 @@ function handleData(data) {
     if (typeof data === 'object' && data !== null) {
         if (data.type === 'chat') {
             appendMessage(DOMPurify.sanitize(data.message), 'incoming');
+        } else if (data.type === 'friendRequest') {
+            // Handle friend request
+            const newRequest = { peerId: data.peerId, contactId: data.contactId };
+            friendRequests.push(newRequest);
+            localStorage.setItem(FRIEND_REQUESTS_KEY, JSON.stringify(friendRequests));
+            displayFriendRequests();
         } else {
             console.warn("Unknown data type:", data);
         }
@@ -105,22 +119,29 @@ function addContact(contactId) {
         return;
     }
 
-    // Check if the Peer ID is valid
-    peer.listAllPeers(peerIds => {
-        if (peerIds.includes(contactId)) {
-            const newContact = { contactId: contactId, peerId: contactId }; // Store both
-            contacts.push(newContact);
-            localStorage.setItem('contacts', JSON.stringify(contacts));
-            displayContacts();
-        } else {
-            alert("Peer ID not found.");
-        }
-    });
+    // Send friend request to the peer instead of directly adding
+    if (peer) {
+        const data = { type: 'friendRequest', peerId: myPeerId, contactId: peer.id };
+        const tempConn = peer.connect(contactId, { reliable: true });
+
+        tempConn.on('open', () => {
+            tempConn.send(data);
+            alert('Friend request sent!');
+            tempConn.close();
+        });
+
+        tempConn.on('error', err => {
+            console.error("Could not send friend request", err);
+            alert("Could not send friend request.  Peer may be offline, or connection may be bad.");
+        });
+    } else {
+        alert("Peer object not initialized. Please refresh the page.");
+    }
 }
 
 function deleteContact(contactId) {
     contacts = contacts.filter(contact => contact.contactId !== contactId);
-    localStorage.setItem('contacts', JSON.stringify(contacts));
+    localStorage.setItem(CONTACTS_KEY, JSON.stringify(contacts));
     displayContacts();
     if (currentContact && currentContact.contactId === contactId) {
         currentContact = null;
@@ -151,15 +172,83 @@ function connectToPeer(peerId) {
     });
 }
 
+function displayFriendRequests() {
+    friendRequestList.innerHTML = '';
+    friendRequests.forEach(request => {
+        const listItem = document.createElement('li');
+        listItem.innerHTML = `<span>Friend request from ${request.contactId}</span>
+                              <button class="accept-btn" data-id="${request.peerId}">Accept</button>
+                              <button class="decline-btn">Decline</button>`;
+
+        listItem.querySelector('.accept-btn').addEventListener('click', () => {
+            acceptFriendRequest(request.peerId, request.contactId);
+        });
+
+        listItem.querySelector('.decline-btn').addEventListener('click', () => {
+            declineFriendRequest(request.peerId);
+        });
+
+        friendRequestList.appendChild(listItem);
+    });
+}
+
+function acceptFriendRequest(peerId, contactId) {
+    // Add contact to contact list
+    const newContact = { contactId: contactId, peerId: peerId };
+    contacts.push(newContact);
+    localStorage.setItem(CONTACTS_KEY, JSON.stringify(contacts));
+    displayContacts();
+
+    // Remove from friend requests
+    friendRequests = friendRequests.filter(request => request.peerId !== peerId);
+    localStorage.setItem(FRIEND_REQUESTS_KEY, JSON.stringify(friendRequests));
+    displayFriendRequests();
+}
+
+function declineFriendRequest(peerId) {
+    friendRequests = friendRequests.filter(request => request.peerId !== peerId);
+    localStorage.setItem(FRIEND_REQUESTS_KEY, JSON.stringify(friendRequests));
+    displayFriendRequests();
+}
+
 // Run on page load
 window.onload = function () {
     // Generate a Peer ID and attempt to connect to the PeerJS server
-    const peerId = generatePeerId();
-    peer = new Peer(peerId);
+    myPeerId = myPeerId || generatePeerId();
+
+    const peerConfig = {
+        host: '0.peerjs.com',
+        port: 443,
+        path: '/',
+        secure: true,
+        key: 'peerjs',
+        debug: 3,
+        config: {
+            iceServers: [{
+                urls: ["stun:eu-turn4.xirsys.com"]
+            }, {
+                username: "vXp0ehXgRlCJeYdQBR4hjAdVn42ttLfds4jTAVrRmD5RTceXb9qp-sCf1PEw5eWiAAAAAGggndthcmNoaWVtdG9w",
+                credential: "fab9d62a-2e66-11f0-b4dc-0242ac140004",
+                urls: [
+                    "turn:eu-turn4.xirsys.com:80?transport=udp",
+                    "turn:eu-turn4.xirsys.com:3478?transport=udp",
+                    "turn:eu-turn4.xirsys.com:80?transport=tcp",
+                    "turn:eu-turn4.xirsys.com:3478?transport=tcp",
+                    "turns:eu-turn4.xirsys.com:443?transport=tcp",
+                    "turns:eu-turn4.xirsys.com:5349?transport=tcp"
+                ]
+            }]
+        }
+    };
+
+    peer = new Peer(myPeerId, peerConfig);
 
     peer.on('open', function (id) {
+        console.log("Peer object on 'open':", peer);
         myPeerIdDiv.innerText = 'My Peer ID: ' + id;
-        displayContacts(); // Load contacts on init
+        localStorage.setItem(PEER_ID_KEY, id);
+        displayContacts();
+        displayFriendRequests();
     });
 
     peer.on('error', function (err) {
