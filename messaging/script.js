@@ -13,7 +13,7 @@ let peer = null;
 let conn = null;
 let isConnected = false;
 let isTyping = false;
-let sharedSecret = null;  // Shared secret after DHKE
+let sharedSecret = null;
 
 // RSA Keypair for initial key exchange
 let publicKey = null;
@@ -25,10 +25,6 @@ function initialize() {
     crypt.getKey();
     publicKey = crypt.getPublicKey();
     privateKey = crypt.getPrivateKey();
-}
-
-function getPublicKey() {
-    return publicKey;
 }
 
 //Sanatize string
@@ -168,13 +164,13 @@ function setTypingIndicator(isTyping) {
     typingIndicator.innerText = isTyping ? "Peer is typing..." : "";
 }
 
-//Set messag status
+//Set message status
 function setMessageStatus(status) {
     messageStatus.innerText = status;
 }
 
 // Function to perform key exchange
-function performKeyExchange(encryptedSecret) {
+function performKeyExchange(encryptedSecret, callback) {
     let crypt = new JSEncrypt();
     crypt.setPrivateKey(privateKey);
     try {
@@ -184,7 +180,7 @@ function performKeyExchange(encryptedSecret) {
             sharedSecret = secret;
             console.log("Shared Secret Established:", sharedSecret);
             appendMessage("Secure Connection Established!", "status");
-
+            if (callback) callback(); // Execute callback after success
         } else {
             console.error("Failed to decrypt shared secret.");
             appendMessage("Error: Secure connection failed.", "error");
@@ -196,16 +192,17 @@ function performKeyExchange(encryptedSecret) {
 }
 
 // Function to send public key to the remote peer
-function sendPublicKey(connection) {
+function sendPublicKey(connection, callback) {
     if (publicKey) {
         connection.send({publicKey: publicKey});
+        if (callback) callback();
     }
 }
 
 // Main data handler
 function handleData(data, isOutgoing) {
     if (data.publicKey) {
-        //Recieved public key -> now calculate shared secret, encrypt and send to the other peer
+        //Received public key -> now calculate shared secret, encrypt and send to the other peer
         console.log("Received public key, starting key exchange...");
         let otherPublicKey = data.publicKey;
 
@@ -220,7 +217,9 @@ function handleData(data, isOutgoing) {
     } else if (data.encryptedSecret) {
         //If data is the encrypted aes key, decrypt it with your own private key
         console.log("Performing key exchange...");
-        performKeyExchange(data.encryptedSecret);
+        performKeyExchange(data.encryptedSecret, () => {
+            // Key exchange completed, can send messages now
+        });
     } else if (typeof data === 'string') {
         //If the data is a string, decrypt and display it
         const decryptedMessage = decryptMessage(data);
@@ -254,7 +253,9 @@ function connectToPeer(remotePeerId) {
         isConnected = true;
 
         //Send public key after making a new connection
-        sendPublicKey(conn);
+        sendPublicKey(conn, () => {
+            console.log("Public key sent, waiting for secure connection...");
+        });
     });
 
     conn.on('data', function (data) {
@@ -291,7 +292,9 @@ window.onload = function () {
         isConnected = true;
 
         // Send public key upon connection
-        sendPublicKey(conn);
+        sendPublicKey(conn, () => {
+            console.log("Public key sent, waiting for secure connection...");
+        });
 
         conn.on('data', function (data) {
             handleData(data, false);  // False indicates message is incoming
