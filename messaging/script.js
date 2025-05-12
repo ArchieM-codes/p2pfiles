@@ -6,7 +6,8 @@ const messagesDiv = document.getElementById('messages');
 const messageInput = document.getElementById('messageInput');
 const sendButton = document.getElementById('sendButton');
 const noPeerMessage = document.getElementById("no-peer-message");
-const friendRequestList = document.getElementById('friend-request-list');
+const dmInput = document.getElementById("dmInput"); // Added Direct Message input
+const dmSendButton = document.getElementById("dmSendButton"); //Added Direct Message send button
 
 let peer = null;
 let conn = null;
@@ -15,11 +16,9 @@ let currentContact = null;
 
 // Local storage keys
 const CONTACTS_KEY = 'contacts';
-const FRIEND_REQUESTS_KEY = 'friendRequests';
 
 // Load data from local storage
 let contacts = JSON.parse(localStorage.getItem(CONTACTS_KEY)) || [];
-let friendRequests = JSON.parse(localStorage.getItem(FRIEND_REQUESTS_KEY)) || [];
 
 // Function to generate a random Peer ID
 function generatePeerId() {
@@ -81,7 +80,7 @@ function appendMessage(message, type) {
     const timestamp = new Date().toLocaleTimeString();
     messageDiv.innerHTML = `<span class="timestamp">${timestamp}</span> ${message}`;
 
-    messagesDiv.appendChild(messageDiv);
+    messagesDiv.appendChildMessage(messageDiv);
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
@@ -98,6 +97,34 @@ function sendMessage(message) {
     messageInput.value = '';
 }
 
+function sendDirectMessage(peerId, message) {
+    if (!peer) {
+        alert("Peer object not initialized. Please refresh the page.");
+        return;
+    }
+
+    const sanitizedMessage = DOMPurify.sanitize(message);
+    const encodedMessage = encodeUTF8(sanitizedMessage);
+
+    const tempConn = peer.connect(peerId, { reliable: true });
+
+    tempConn.on('open', () => {
+        console.log("DM Connection opened with:", peerId);
+        tempConn.send({ type: 'chat', message: encodedMessage });
+        alert('DM sent!');
+        tempConn.close();
+    });
+
+    tempConn.on('error', err => {
+        console.error("Could not send DM", err);
+        alert("Could not send DM.  Peer may be offline, or connection may be bad.");
+    });
+
+    tempConn.on('close', () => {
+        console.log("DM Connection closed with:", peerId);
+    });
+}
+
 function handleData(data) {
     console.log("Received data:", data);
 
@@ -106,12 +133,6 @@ function handleData(data) {
             // Decode the message
             const decodedMessage = decodeUTF8(data.message);
             appendMessage(DOMPurify.sanitize(decodedMessage), 'incoming');
-        } else if (data.type === 'friendRequest') {
-            // Handle friend request
-            const newRequest = { peerId: data.peerId, contactId: data.contactId };
-            friendRequests.push(newRequest);
-            localStorage.setItem(FRIEND_REQUESTS_KEY, JSON.stringify(friendRequests));
-            displayFriendRequests();
         } else {
             console.warn("Unknown data type:", data);
         }
@@ -163,28 +184,10 @@ function addContact(contactId) {
         return;
     }
 
-    // Send friend request to the peer instead of directly adding
-    if (peer) {
-        const data = { type: 'friendRequest', peerId: peer.id, contactId: contactId }; //Swapped the values
-        const tempConn = peer.connect(contactId, { reliable: true });
-
-        tempConn.on('open', () => {
-            console.log("Friend request connection opened with:", contactId); // Log here
-            tempConn.send(data);
-            alert('Friend request sent!');
-            tempConn.close();
-        });
-
-        tempConn.on('error', err => {
-            console.error("Could not send friend request", err);
-            alert("Could not send friend request.  Peer may be offline, or connection may be bad.");
-        });
-        tempConn.on('close', () => {  // Add this
-            console.log("Friend request connection closed with:", contactId);
-        });
-    } else {
-        alert("Peer object not initialized. Please refresh the page.");
-    }
+    const newContact = { contactId: contactId, peerId: contactId };
+    contacts.push(newContact);
+    localStorage.setItem(CONTACTS_KEY, JSON.stringify(contacts));
+    displayContacts();
 }
 
 function deleteContact(contactId) {
@@ -218,45 +221,6 @@ function connectToPeer(peerId) {
         isConnected = false;
         appendMessage('Connection closed', 'incoming');
     });
-}
-
-function displayFriendRequests() {
-    friendRequestList.innerHTML = '';
-    friendRequests.forEach(request => {
-        const listItem = document.createElement('li');
-        listItem.innerHTML = `<span>Friend request from ${request.contactId}</span>
-                              <button class="accept-btn" data-id="${request.peerId}">Accept</button>
-                              <button class="decline-btn">Decline</button>`;
-
-        listItem.querySelector('.accept-btn').addEventListener('click', () => {
-            acceptFriendRequest(request.peerId, request.contactId);
-        });
-
-        listItem.querySelector('.decline-btn').addEventListener('click', () => {
-            declineFriendRequest(request.peerId);
-        });
-
-        friendRequestList.appendChild(listItem);
-    });
-}
-
-function acceptFriendRequest(peerId, contactId) {
-    // Add contact to contact list
-    const newContact = { contactId: contactId, peerId: peerId };
-    contacts.push(newContact);
-    localStorage.setItem(CONTACTS_KEY, JSON.stringify(contacts));
-    displayContacts();
-
-    // Remove from friend requests
-    friendRequests = friendRequests.filter(request => request.peerId !== peerId);
-    localStorage.setItem(FRIEND_REQUESTS_KEY, JSON.stringify(friendRequests));
-    displayFriendRequests();
-}
-
-function declineFriendRequest(peerId) {
-    friendRequests = friendRequests.filter(request => request.peerId !== peerId);
-    localStorage.setItem(FRIEND_REQUESTS_KEY, JSON.stringify(friendRequests));
-    displayFriendRequests();
 }
 
 // Run on page load
@@ -294,7 +258,6 @@ window.onload = async function () {
         console.log("Peer object on 'open':", peer);
         myPeerIdDiv.innerText = 'My Peer ID: ' + id;
         displayContacts();
-        displayFriendRequests();
     });
 
     peer.on('error', function (err) {
@@ -335,6 +298,20 @@ window.onload = async function () {
         const message = messageInput.value.trim();
         if (message) {
             sendMessage(message);
+        }
+    });
+
+    // Direct Message functionality
+    dmSendButton.addEventListener('click', () => {
+        const peerId = prompt("Enter Peer ID to DM:");
+        if (peerId) {
+            const message = dmInput.value.trim();
+            if (message) {
+                sendDirectMessage(peerId, message);
+                dmInput.value = '';
+            } else {
+                alert("Please enter a message to send.");
+            }
         }
     });
 };
