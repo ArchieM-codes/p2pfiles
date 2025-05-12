@@ -6,8 +6,6 @@ const messagesDiv = document.getElementById('messages');
 const messageInput = document.getElementById('messageInput');
 const sendButton = document.getElementById('sendButton');
 const noPeerMessage = document.getElementById("no-peer-message");
-const dmInput = document.getElementById("dmInput"); // Added Direct Message input
-const dmSendButton = document.getElementById("dmSendButton"); //Added Direct Message send button
 
 let peer = null;
 let conn = null;
@@ -80,7 +78,7 @@ function appendMessage(message, type) {
     const timestamp = new Date().toLocaleTimeString();
     messageDiv.innerHTML = `<span class="timestamp">${timestamp}</span> ${message}`;
 
-    messagesDiv.appendChildMessage(messageDiv);
+    messagesDiv.appendChild(messageDiv);
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
@@ -95,34 +93,6 @@ function sendMessage(message) {
     conn.send({ type: 'chat', message: encodedMessage });
     appendMessage(sanitizedMessage, 'outgoing');
     messageInput.value = '';
-}
-
-function sendDirectMessage(peerId, message) {
-    if (!peer) {
-        alert("Peer object not initialized. Please refresh the page.");
-        return;
-    }
-
-    const sanitizedMessage = DOMPurify.sanitize(message);
-    const encodedMessage = encodeUTF8(sanitizedMessage);
-
-    const tempConn = peer.connect(peerId, { reliable: true });
-
-    tempConn.on('open', () => {
-        console.log("DM Connection opened with:", peerId);
-        tempConn.send({ type: 'chat', message: encodedMessage });
-        alert('DM sent!');
-        tempConn.close();
-    });
-
-    tempConn.on('error', err => {
-        console.error("Could not send DM", err);
-        alert("Could not send DM.  Peer may be offline, or connection may be bad.");
-    });
-
-    tempConn.on('close', () => {
-        console.log("DM Connection closed with:", peerId);
-    });
 }
 
 function handleData(data) {
@@ -301,17 +271,6 @@ window.onload = async function () {
         }
     });
 
-    // Direct Message functionality
-    dmSendButton.addEventListener('click', () => {
-        const peerId = prompt("Enter Peer ID to DM:");
-        if (peerId) {
-            const message = dmInput.value.trim();
-            if (message) {
-                sendDirectMessage(peerId, message);
-                dmInput.value = '';
-            } else {
-                alert("Please enter a message to send.");
-            }
-        }
-    });
+    // Initial Contact Display
+    displayContacts();
 };
