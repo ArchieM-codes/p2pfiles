@@ -1,3 +1,5 @@
+//Main script
+
 const myPeerIdDiv = document.getElementById('myPeerId');
 const newContactIdInput = document.getElementById('new-contact-id');
 const addContactBtn = document.getElementById('add-contact-btn');
@@ -10,10 +12,18 @@ const noPeerMessage = document.getElementById("no-peer-message");
 let peer = null;
 let conn = null;
 let isConnected = false;
-let currentContact = null; // Keep track of the current contact
+let currentContact = null;
 
 // Contacts are stored in localStorage
 let contacts = JSON.parse(localStorage.getItem('contacts')) || [];
+
+// Function to generate a random Peer ID
+function generatePeerId() {
+    const randomNumber1 = Math.floor(1000 + Math.random() * 9000);
+    const randomLetters = Array.from({ length: 3 }, () => String.fromCharCode(Math.floor(Math.random() * 52) + (Math.random() > 0.5 ? 65 : 97))).join('');
+    const randomNumber2 = Math.floor(1000 + Math.random() * 9000);
+    return `AMC-${randomNumber1}-${randomLetters}-${randomNumber2}`;
+}
 
 function appendMessage(message, type) {
     const messageDiv = document.createElement('div');
@@ -89,6 +99,13 @@ function addContact(contactId) {
         return;
     }
 
+    const peerIdRegex = /^AMC-\d{4}-[A-Za-z]{3}-\d{4}$/;
+    if (!peerIdRegex.test(contactId)) {
+        alert("Invalid Contact ID format. Use AMC-XXXX-XXX-XXXX.");
+        return;
+    }
+
+    // Check if the Peer ID is valid
     peer.listAllPeers(peerIds => {
         if (peerIds.includes(contactId)) {
             const newContact = { contactId: contactId, peerId: contactId }; // Store both
@@ -136,11 +153,17 @@ function connectToPeer(peerId) {
 
 // Run on page load
 window.onload = function () {
-    peer = new Peer();
+    // Generate a Peer ID and attempt to connect to the PeerJS server
+    const peerId = generatePeerId();
+    peer = new Peer(peerId);
 
     peer.on('open', function (id) {
         myPeerIdDiv.innerText = 'My Peer ID: ' + id;
         displayContacts(); // Load contacts on init
+    });
+
+    peer.on('error', function (err) {
+        console.error("PeerJS error:", err);
     });
 
     // New Incoming connection
