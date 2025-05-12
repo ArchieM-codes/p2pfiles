@@ -1,6 +1,6 @@
-// script.js - REVISED
+// script.js
 
-// UI elements... (same as before)
+// UI elements (same as before)
 const myPeerIdDiv = document.getElementById('myPeerId');
 const remotePeerIdInput = document.getElementById('remotePeerId');
 const connectButton = document.getElementById('connectButton');
@@ -38,7 +38,7 @@ function sendMessage(message) {
     }
 
     const sanitizedMessage = DOMPurify.sanitize(message);
-    conn.send({ type: 'chat', message: sanitizedMessage }); // Explicitly send as object
+    conn.send({type: 'chat', message: sanitizedMessage});
     appendMessage(sanitizedMessage, 'outgoing');
     messageInput.value = '';
 }
@@ -55,7 +55,7 @@ function sendFile(file) {
         conn.send({
             type: 'file',
             name: file.name,
-            fileType: file.type, // Use different name
+            fileType: file.type,
             data: event.target.result
         });
         appendMessage(`Sending file: ${file.name}`, 'outgoing');
@@ -69,16 +69,17 @@ function sendFile(file) {
 }
 
 function handleData(data) {
-    console.log("Received data:", data); // Log EVERY incoming data packet
+    console.log("Received data:", data);  // Log EVERYTHING
+    console.log("Type of data:", typeof data);  // Check its type
 
-    if (typeof data === 'object' && data !== null) { // Only process objects
+    if (typeof data === 'object' && data !== null) {
         if (data.type === 'chat') {
             appendMessage(DOMPurify.sanitize(data.message), 'incoming');
         } else if (data.type === 'file') {
             const fileName = DOMPurify.sanitize(data.name);
-            const fileType = DOMPurify.sanitize(data.fileType);  // different name
+            const fileType = DOMPurify.sanitize(data.fileType);
 
-            const blob = new Blob([data.data], { type: fileType });
+            const blob = new Blob([data.data], {type: fileType});
             const url = URL.createObjectURL(blob);
 
             const downloadLink = document.createElement('a');
@@ -97,7 +98,7 @@ function handleData(data) {
             console.warn("Unknown data type:", data);
         }
     } else {
-        console.warn("Received non-object data:", data);  //Catch any non-object data, report to console
+        console.warn("Received non-object data:", data);
     }
 }
 
@@ -105,10 +106,12 @@ window.onload = function () {
     peer = new Peer();
 
     peer.on('open', function (id) {
+        console.log("Peer object on 'open':", peer);  // Log Peer Object
         myPeerIdDiv.innerText = 'My Peer ID: ' + id;
     });
 
     peer.on('connection', function (connection) {
+        console.log("Incoming connection:", connection);  // Log Connection Object
         conn = connection;
         isConnected = true;
         appendMessage('Connected!', 'incoming');
@@ -121,11 +124,16 @@ window.onload = function () {
             isConnected = false;
             appendMessage('Connection closed', 'incoming');
         });
+
+        conn.on('open', function() {
+            console.log("Connection 'open' event fired"); // Log 'open' event
+            conn.send({type: 'chat', message: 'TEST MESSAGE - connection established!'});
+        });
     });
 
     connectButton.addEventListener('click', function () {
         const remotePeerId = remotePeerIdInput.value;
-        conn = peer.connect(remotePeerId, { reliable: true });
+        conn = peer.connect(remotePeerId, {reliable: true});
         isConnected = true;
         appendMessage('Connected!', 'outgoing');
 
@@ -136,6 +144,10 @@ window.onload = function () {
         conn.on('close', function () {
             isConnected = false;
             appendMessage('Connection closed', 'outgoing');
+        });
+        conn.on('open', function() {
+            console.log("Connection 'open' event fired"); // Log 'open' event
+            conn.send({type: 'chat', message: 'TEST MESSAGE - connection established!'});
         });
     });
 
@@ -158,7 +170,7 @@ window.onload = function () {
 
         const isTypingNow = messageInput.value.trim() !== "";
         if (isTypingNow !== isTyping) {
-            conn.send({ type: 'typing', isTyping: isTypingNow });  //Object form
+            conn.send({type: 'typing', isTyping: isTypingNow});
             isTyping = isTypingNow;
         }
     });
