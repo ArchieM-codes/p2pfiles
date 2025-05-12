@@ -6,17 +6,21 @@ body {
     display: flex;
     flex-direction: column;
     height: 100vh;
+    width: 100vw; /* Full width */
+    overflow: hidden; /* Prevent scrolling */
 }
 
 #app-container {
     display: flex;
     flex-direction: column;
     flex-grow: 1;
-    max-width: 800px;
-    margin: 20px auto;
+    max-width: none; /* Remove max width */
+    width: 100%; /* Full width */
+    height: 100%; /* Full height */
+    margin: 0; /* Remove margin */
     background: white;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    border-radius: 8px;
+    border-radius: 0; /* Remove border radius */
     overflow: hidden;
 }
 
@@ -47,6 +51,8 @@ body {
     list-style: none;
     padding: 0;
     margin: 0;
+    overflow-y: auto; /* Scrollable contact list */
+    max-height: 200px; /* Limit contact list height */
 }
 
 #contact-list li {
