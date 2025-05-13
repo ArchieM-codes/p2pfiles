@@ -1,7 +1,7 @@
 // --- PeerJS Connection ---
-let peer = null; // Will hold the Peer object
-let conn = null; // Will hold the DataConnection object
-let isConnected = false; // Flag to check connection status
+let peer = null;
+let conn = null;
+let isConnected = false;
 
 // --- UI Elements ---
 const messageInput = document.getElementById("messageInput");
@@ -14,55 +14,108 @@ const myPeerIdDiv = document.getElementById("myPeerId");
 const noPeerMessageDiv = document.getElementById("no-peer-message");
 const imageInput = document.getElementById('imageInput');
 
-let currentPeerId = null; // Tracks the currently selected peer
+let currentPeerId = null;
 
-// --- Local Storage ---
-const CONTACTS_KEY = 'p2p_chat_contacts';
-
-function loadContacts() {
-    const storedContacts = localStorage.getItem(CONTACTS_KEY);
-    if (storedContacts) {
-        const contacts = JSON.parse(storedContacts);
-        contacts.forEach(addContactToList); // Render from local storage
+// --- Local Storage Keys (as you provided) ---
+const CONTACTS_KEY = 'contacts'; // Correct key
+const MY_PEER_ID_KEY = 'd18e51edd58268415a9c2311e41dfadabcfa1158ee335d067fc1f82e4127b20a';
+const ICE_SERVERS = [
+    { urls: ["stun:eu-turn4.xirsys.com"] },
+    {
+        username: "vXp0ehXgRlCJeYdQBR4hjAdVn42ttLfds4jTAVrRmD5RTceXb9qp-sCf1PEw5eWiAAAAAGggndthcmchiemtop",
+        credential: "fab9d62a-2e66-11f0-b4dc-0242ac140004",
+        urls: [
+            "turn:eu-turn4.xirsys.com:80?transport=udp",
+            "turn:eu-turn4.xirsys.com:3478?transport=udp",
+            "turn:eu-turn4.xirsys.com:80?transport=tcp",
+            "turn:eu-turn4.xirsys.com:3478?transport=tcp",
+            "turns:eu-turn4.xirsys.com:443?transport=tcp",
+            "turns:eu-turn4.xirsys.com:5349?transport=tcp"
+        ]
     }
+];
+
+// --- Helper Functions for Local Storage ---
+function getContacts() {
+    const storedContacts = localStorage.getItem(CONTACTS_KEY);
+    return storedContacts ? JSON.parse(storedContacts) : [];
 }
 
-function saveContacts() {
-    const contacts = [];
-    document.querySelectorAll('#contact-list li').forEach(item => {
-        contacts.push(item.textContent);  // Get text from list item
-    });
+function saveContacts(contacts) {
     localStorage.setItem(CONTACTS_KEY, JSON.stringify(contacts));
+}
+
+function getMyPeerIdFromLocalStorage() {
+    return localStorage.getItem(MY_PEER_ID_KEY);
+}
+
+function saveMyPeerIdToLocalStorage(peerId) {
+    localStorage.setItem(MY_PEER_ID_KEY, peerId);
+}
+
+function addContactToList(contact) {
+    const listItem = document.createElement('li');
+    listItem.textContent = `${contact.displayName} (${contact.peerId})`; // Display name + PeerId
+
+    listItem.addEventListener('click', function () {
+        connectToPeer(contact.peerId);
+        currentPeerId = contact.peerId;
+        updateNoPeerMessage();
+
+        document.querySelectorAll('#contact-list li').forEach(item => {
+            item.classList.remove('selected');
+        });
+        listItem.classList.add('selected');
+    });
+
+    contactList.appendChild(listItem);
 }
 
 // --- PeerJS Initialization ---
 function initializePeer() {
-    peer = new Peer();
+    let peerId = getMyPeerIdFromLocalStorage();
+
+    const peerOptions = {
+        config: {
+            iceServers: ICE_SERVERS
+        }
+    };
+
+    if (peerId) {
+        console.log("Using existing Peer ID from localStorage: " + peerId);
+        peerOptions.id = peerId; // Set the ID if found in localStorage
+    }
+
+    peer = new Peer(peerOptions);
 
     peer.on('open', function (id) {
         console.log('My Peer ID is: ' + id);
         myPeerIdDiv.textContent = "My Peer ID: " + id;
+
+        if (!peerId) { // If we generated a new ID, save it
+            saveMyPeerIdToLocalStorage(id);
+        }
     });
 
     peer.on('connection', function (connection) {
         console.log("Incoming connection!");
         conn = connection;
         isConnected = true;
-        currentPeerId = conn.peer; // Set the connected peer ID
-        updateNoPeerMessage(); // Hide the no-peer message
+        currentPeerId = conn.peer;
+        updateNoPeerMessage();
 
         conn.on('data', handleData);
         conn.on('close', function () {
             console.log("Connection closed by remote peer.");
             isConnected = false;
             conn = null;
-            updateNoPeerMessage();  // Show no-peer message
+            updateNoPeerMessage();
         });
         conn.on('error', function (err) {
             console.error("Connection error:", err);
             isConnected = false;
             conn = null;
-            updateNoPeerMessage();  // Show no-peer message
+            updateNoPeerMessage();
         });
     });
 
@@ -71,14 +124,15 @@ function initializePeer() {
     });
 }
 
+// --- Peer Connection Functions ---
 function connectToPeer(remotePeerId) {
     if (conn) {
-        conn.close(); // Close existing connection
+        conn.close();
     }
 
-    conn = peer.connect(remotePeerId, { reliable: true }); // Establish new connection
+    conn = peer.connect(remotePeerId, { reliable: true });
     currentPeerId = remotePeerId;
-    updateNoPeerMessage(); // Hide the no-peer message
+    updateNoPeerMessage();
 
     conn.on('open', function () {
         console.log("Connected to: " + remotePeerId);
@@ -89,25 +143,26 @@ function connectToPeer(remotePeerId) {
             console.log("Connection closed by remote peer.");
             isConnected = false;
             conn = null;
-            updateNoPeerMessage(); // Show no-peer message
+            updateNoPeerMessage();
         });
         conn.on('error', function (err) {
             console.error("Connection error:", err);
             isConnected = false;
             conn = null;
-            updateNoPeerMessage();  // Show no-peer message
+            updateNoPeerMessage();
         });
     });
 }
 
 function updateNoPeerMessage() {
     if (isConnected || currentPeerId) {
-        noPeerMessageDiv.style.display = 'none'; // Hide message
+        noPeerMessageDiv.style.display = 'none';
     } else {
-        noPeerMessageDiv.style.display = 'block'; // Show message
+        noPeerMessageDiv.style.display = 'block';
     }
 }
 
+// --- Message Handling Functions ---
 function sendMessage(type, content) {
     if (!isConnected || !conn) {
         alert("Not connected!");
@@ -135,7 +190,7 @@ function handleData(data) {
             const decodedMessage = decodeUTF8(data.content);
             appendMessage(DOMPurify.sanitize(decodedMessage), 'incoming');
         } else if (data.type === 'image') {
-            appendMessage(data.content, 'incoming', true); // Indicate it's an image
+            appendMessage(data.content, 'incoming', true);
         } else {
             console.warn("Unknown data type:", data);
         }
@@ -161,25 +216,6 @@ function appendMessage(message, type, isImage = false) {
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
-function addContactToList(peerId) {
-    const listItem = document.createElement('li');
-    listItem.textContent = peerId;
-
-    listItem.addEventListener('click', function () {
-        connectToPeer(peerId);
-        currentPeerId = peerId; // Set the connected peer ID
-        updateNoPeerMessage(); // Hide the no-peer message
-        // Remove "selected" class from all list items
-        document.querySelectorAll('#contact-list li').forEach(item => {
-            item.classList.remove('selected');
-        });
-        // Add "selected" class to the clicked item
-        listItem.classList.add('selected');
-    });
-
-    contactList.appendChild(listItem);
-}
-
 // --- Event Listeners ---
 sendButton.addEventListener('click', function () {
     const messageText = messageInput.value.trim();
@@ -196,8 +232,8 @@ sendButton.addEventListener('click', function () {
         reader.onload = function (e) {
             const base64Image = e.target.result;
             sendMessage('image', base64Image);
-            appendMessage(base64Image, 'outgoing', true); // Indicate it's an image
-            imageInput.value = ''; // Clear the input
+            appendMessage(base64Image, 'outgoing', true);
+            imageInput.value = '';
         }
         reader.readAsDataURL(imageFile);
     }
@@ -207,18 +243,30 @@ addContactBtn.addEventListener('click', function () {
     const newContactId = newContactIdInput.value.trim();
 
     if (newContactId && /^AMC-\d{4}-[A-Za-z0-9]{3}-\d{4}$/.test(newContactId)) {
-        addContactToList(newContactId); // Add the contact to the list
+        // Prompt for display name:
+        const displayName = prompt("Enter display name for this contact:");
+        if (displayName) {
+            const newContact = { peerId: newContactId, displayName: displayName };
 
-        saveContacts(); // Save updated contact list
-        newContactIdInput.value = ''; // Clear the input
+            // Get existing contacts, add the new one, and save
+            const contacts = getContacts();
+            contacts.push(newContact);
+            saveContacts(contacts);
+
+            addContactToList(newContact);  // Add to the UI
+
+            newContactIdInput.value = ''; // Clear the input
+        }
     } else {
         alert("Invalid Peer ID format. Use AMC-1234-AbC-5678 format.");
     }
 });
 
-contactList.addEventListener('DOMNodeInserted', saveContacts);
-contactList.addEventListener('DOMNodeRemoved', saveContacts);
+// --- Initialization ---
+function loadInitialContacts() {
+    const contacts = getContacts();
+    contacts.forEach(addContactToList);
+}
 
-// Initialization
 initializePeer();
-loadContacts();
+loadInitialContacts();
