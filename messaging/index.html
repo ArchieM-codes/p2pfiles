@@ -1,194 +1,47 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-
-<meta charset="UTF-8">
-
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-
-<title>P2P Chat</title>
-
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css">
-
-<link rel="stylesheet" href="style.css">
-
-<style>
-
-/* Styles for better iframe compatibility */
-
-body {
-
-font-family: sans-serif;
-
-margin: 0;
-
-padding: 0;
-
-overflow: hidden; /* Prevent scrollbars on the body */
-
-}
-
-#app-container {
-
-width: 100%;
-
-height: 100vh;  /* Use viewport height */
-
-display: flex;
-
-flex-direction: column;
-
-}
-
-#messages {
-
-flex-grow: 1; /* Take up remaining space */
-
-overflow-y: auto;  /* Enable scrolling within the message area */
-
-padding: 10px;
-
-}
-
-.message img {
-
-max-width: 200px; /* Limit image width */
-
-height: auto;  /* Maintain aspect ratio */
-
-}
-
-#input-area {
-
-display: flex;
-
-padding: 10px;
-
-}
-
-#input-area input[type="text"] {
-
-flex-grow: 1;
-
-margin-right: 5px;
-
-}
-
-/* Popup chat styles */
-#popup-chat {
-    display: none;
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    width: 300px;
-    background-color: #f0f0f0;
-    border: 1px solid #ccc;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-    z-index: 1000;
-}
-
-#popup-header {
-    background-color: #ddd;
-    padding: 10px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-#popup-messages {
-    padding: 10px;
-    height: 200px;
-    overflow-y: auto;
-}
-
-#popup-input-area {
-    display: flex;
-    padding: 10px;
-}
-
-#popup-input-area input[type="text"] {
-    flex-grow: 1;
-    margin-right: 5px;
-}
-</style>
-</head>
-<body>
-
-<div id="app-container">
-
-<div id="header">
-
-<h1>P2P Chat</h1>
-
-</div>
-
-<div id="contacts-container">
-
-<h2>Contacts</h2>
-
-<ul id="contact-list">
-
-<!-- Contacts will be dynamically added here -->
-
-</ul>
-
-<div id="add-contact-section">
-
-<input type="text" id="new-contact-id" placeholder="AMC-XXXX-XXX-XXXX" pattern="AMC-\d{4}-[A-Za-z0-9]{3}-\d{4}" title="Format: AMC-1234-AbC-5678">
-
-<button id="add-contact-btn">Add Contact</button>
-
-</div>
-
-</div>
-
-<div id="chat-container">
-
-<div id="messages">
-
-<!-- Messages will be displayed here -->
-
-</div>
-
-<div id="input-area">
-
-<input type="text" id="messageInput" placeholder="Type a message...">
-
-<button id="sendButton">Send</button>
-
-</div>
-
-</div>
-
-<div id="peer-info">
-
-<div id="myPeerId"></div>
-
-</div>
-
-<div id="no-peer-message">No peer selected</div>
-
-</div>
-
-<!-- The popup chat structure -->
-<div id="popup-chat" style="display:none;">
-    <div id="popup-header">
-        <span id="popup-contact-name">Contact Name</span>
-        <button id="popup-close-btn">Close</button>
-    </div>
-    <div id="popup-messages">
-        <!-- Messages will be displayed here -->
-    </div>
-    <div id="popup-input-area">
-        <input type="text" id="popup-message-input" placeholder="Type a message...">
-        <button id="popup-send-btn">Send</button>
-    </div>
-</div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/2.3.3/purify.min.js"></script>
-
-<script src="script.js"></script>
-</body>
-</html>
+ <!DOCTYPE html>
+ <html lang="en">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>P2P Chat</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css">
+  <link rel="stylesheet" href="style.css">
+ </head>
+ <body style="font-family: sans-serif; margin: 0; padding: 0; overflow: hidden;">
+  <div id="app-container" style="width: 100%; height: 100vh; display: flex; flex-direction: column;">
+  <!-- Contacts List occupies the main page -->
+  <div id="contacts-container" style="flex-grow: 1; overflow-y: auto; padding: 10px;">
+  <h2 style="text-align: center;">Contacts</h2>
+  <ul id="contact-list" style="list-style: none; padding: 0;">
+  <!-- Contacts will be dynamically added here -->
+  </ul>
+  <div id="add-contact-section" style="margin-top: 10px; text-align: center;">
+  <input type="text" id="new-contact-id" placeholder="AMC-XXXX-XXX-XXXX" pattern="AMC-\\d{4}-[A-Za-z0-9]{3}-\\d{4}" title="Format: AMC-1234-AbC-5678" style="padding: 5px; margin-right: 5px;">
+  <button id="add-contact-btn" style="padding: 5px 10px;">Add Contact</button>
+  </div>
+  <div id="peer-info" style="text-align: center;">
+  <div id="myPeerId"></div>
+  </div>
+  <div id="no-peer-message" style="text-align: center;">No peer selected</div>
+  </div>
+  <!-- Full-page Popup Chat -->
+  <div id="popup-chat" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 1000; justify-content: center; align-items: center;">
+  <div style="background-color: #f0f0f0; border: 1px solid #ccc; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); width: 80%; height: 80%; display: flex; flex-direction: column;">
+  <div id="popup-header" style="background-color: #ddd; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
+  <span id="popup-contact-name" style="font-weight: bold;">Contact Name</span>
+  <button id="popup-close-btn" style="padding: 5px 10px;">Close</button>
+  </div>
+  <div id="popup-messages" style="padding: 10px; flex-grow: 1; overflow-y: auto;">
+  <!-- Messages will be displayed here -->
+  </div>
+  <div id="popup-input-area" style="display: flex; padding: 10px;">
+  <input type="text" id="popup-message-input" placeholder="Type a message..." style="flex-grow: 1; margin-right: 5px; padding: 5px;">
+  <button id="popup-send-btn" style="padding: 5px 10px;">Send</button>
+  </div>
+  </div>
+  </div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/2.3.3/purify.min.js"></script>
+  <script src="script.js"></script>
+ </body>
+ </html>
