@@ -1,72 +1,11 @@
-#group-app {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    width: 100%;
-}
+body { font-family: sans-serif; margin: 0; padding: 0; display: flex; }
+#controls, #groupList { width: 200px; padding: 10px; border-right: 1px solid #ccc; }
+#chatSection { flex: 1; padding: 10px; display: flex; flex-direction: column; }
+.hidden { display: none; }
 
-#group-header {
-    background-color: #007bff;
-    color: white;
-    padding: 10px;
-    text-align: center;
-}
-
-#group-main {
-    display: flex;
-    flex-grow: 1;
-}
-
-#group-management {
-    flex: 1;
-    padding: 20px;
-    border-right: 1px solid #ccc;
-}
-
-#group-chat {
-    flex: 2;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-}
-
-#group-messages {
-    flex-grow: 1;
-    overflow-y: auto;
-    padding: 10px;
-    border: 1px solid #ccc;
-}
-
-#group-input {
-    display: flex;
-    margin-top: 10px;
-}
-
-#group-input input {
-    flex-grow: 1;
-    padding: 8px;
-}
-
-/* Styled Buttons */
-button {
-    padding: 8px 15px;
-    background-color: #007bff;
-    color: white;
-    border: none;
-    cursor: pointer;
-    border-radius: 5px; /* Rounded corners */
-    transition: background-color 0.3s; /* Smooth transition */
-}
-
-button:hover {
-    background-color: #0056b3; /* Darker color on hover */
-}
-
-#member-list {
-    list-style: none;
-    padding: 0;
-}
-
-#member-list li {
-    margin-bottom: 5px;
-}
+#members, #messages { border: 1px solid #ddd; padding: 5px; margin-bottom: 10px; }
+#members { max-height: 150px; overflow-y: auto; }
+#messages { flex: 1; overflow-y: auto; }
+#messages .msg { margin: 5px 0; }
+#membersUl li { display: flex; justify-content: space-between; }
+#membersUl li button { margin-left: 5px; }
