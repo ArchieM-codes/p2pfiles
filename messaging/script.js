@@ -6,6 +6,9 @@ const messagesDiv = document.getElementById('messages');
 const messageInput = document.getElementById('messageInput');
 const sendButton = document.getElementById('sendButton');
 const noPeerMessage = document.getElementById("no-peer-message");
+//new elements
+const fileInput = document.getElementById('fileInput');
+const sendFileButton = document.getElementById('sendFileButton');
 
 let peer = null;
 let conn = null;
@@ -21,454 +24,486 @@ let contacts = JSON.parse(localStorage.getItem(CONTACTS_KEY)) || [];
 // Function to generate a random Peer ID
 function generatePeerId() {
 
-const randomNumber1 = Math.floor(1000 + Math.random() * 9000);
+    const randomNumber1 = Math.floor(1000 + Math.random() * 9000);
 
-const randomLetters = Array.from({ length: 3 }, () => {
+    const randomLetters = Array.from({ length: 3 }, () => {
 
-const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 
-return chars.charAt(Math.floor(Math.random() * chars.length));
+        return chars.charAt(Math.floor(Math.random() * chars.length));
 
-}).join('');
+    }).join('');
 
-const randomNumber2 = Math.floor(1000 + Math.random() * 9000);
+    const randomNumber2 = Math.floor(1000 + Math.random() * 9000);
 
-return `AMC-${randomNumber1}-${randomLetters}-${randomNumber2}`;
+    return `AMC-${randomNumber1}-${randomLetters}-${randomNumber2}`;
 }
 
 // Function to hash a string
 async function hashString(str) {
 
-const encoder = new TextEncoder();
+    const encoder = new TextEncoder();
 
-const data = encoder.encode(str);
+    const data = encoder.encode(str);
 
-const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
 
-const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
 
-const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-return hashHex;
+    return hashHex;
 }
 
 async function getOrCreatePeerId() {
 
-try {
+    try {
 
-const ipResponse = await fetch('https://api.ipify.org?format=json');
+        const ipResponse = await fetch('https://api.ipify.org?format=json');
 
-const ipData = await ipResponse.json();
+        const ipData = await ipResponse.json();
 
-const ipAddress = ipData.ip;
+        const ipAddress = ipData.ip;
 
-const userAgent = navigator.userAgent;
+        const userAgent = navigator.userAgent;
 
-const deviceHash = await hashString(ipAddress + userAgent);
+        const deviceHash = await hashString(ipAddress + userAgent);
 
-let peerId = localStorage.getItem(deviceHash) || null;
+        let peerId = localStorage.getItem(deviceHash) || null;
 
-if (!peerId) {
+        if (!peerId) {
 
-peerId = generatePeerId();
+            peerId = generatePeerId();
 
-localStorage.setItem(deviceHash, peerId);
+            localStorage.setItem(deviceHash, peerId);
 
-}
+        }
 
-return peerId;
+        return peerId;
 
-} catch (error) {
+    } catch (error) {
 
-console.error("Error getting device ID:", error);
+        console.error("Error getting device ID:", error);
 
-return generatePeerId(); // Fallback if IP or hashing fails
+        return generatePeerId(); // Fallback if IP or hashing fails
 
-}
+    }
 }
 
 // Utility function to encode a string to UTF-8
 function encodeUTF8(str) {
 
-return new TextEncoder().encode(str);
+    return new TextEncoder().encode(str);
 }
 
 // Utility function to decode a UTF-8 byte array to string
 function decodeUTF8(bytes) {
 
-return new TextDecoder().decode(bytes);
+    return new TextDecoder().decode(bytes);
 }
 
 function appendMessage(message, type) {
 
-const messageDiv = document.createElement('div');
+    const messageDiv = document.createElement('div');
 
-messageDiv.classList.add('message', type);
+    messageDiv.classList.add('message', type);
 
-const timestamp = new Date().toLocaleTimeString();
+    const timestamp = new Date().toLocaleTimeString();
 
-messageDiv.innerHTML = `<span class="timestamp">${timestamp}</span> ${message}`;
+    messageDiv.innerHTML = `<span class="timestamp">${timestamp}</span> ${message}`;
 
-messagesDiv.appendChild(messageDiv);
+    messagesDiv.appendChild(messageDiv);
 
-messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
-function sendMessage(message) {
+function sendMessage(type, content, fileInfo = null) {
 
-if (!isConnected || !conn) {
+    if (!isConnected || !conn) {
 
-alert("Not connected!");
+        alert("Not connected!");
 
-return;
+        return;
 
-}
+    }
 
-const sanitizedMessage = DOMPurify.sanitize(message);
-
-const encodedMessage = encodeUTF8(sanitizedMessage);  // Encode the message
-
-conn.send({ type: 'chat', message: encodedMessage });
-
-appendMessage(sanitizedMessage, 'outgoing');
-
-messageInput.value = '';
+    const data = { type: type, content: content, fileInfo: fileInfo };
+    conn.send(data);
 }
 
 function handleData(data) {
 
-console.log("Received data:", data);
+    console.log("Received data:", data);
 
-if (typeof data === 'object' && data !== null) {
+    if (typeof data === 'object' && data !== null) {
 
-if (data.type === 'chat') {
+        if (data.type === 'chat') {
 
-// Decode the message
+            const decodedMessage = decodeUTF8(data.content);
 
-const decodedMessage = decodeUTF8(data.message);
+            appendMessage(DOMPurify.sanitize(decodedMessage), 'incoming');
 
-appendMessage(DOMPurify.sanitize(decodedMessage), 'incoming');
+        } else if (data.type === 'file') {
+            // Create a Blob from the array buffer
+            const blob = new Blob([data.content], { type: data.fileInfo.type });
 
-} else {
+            // Create a link element
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = data.fileInfo.name; // Set the file name
 
-console.warn("Unknown data type:", data);
+            // Append the link to the DOM
+            document.body.appendChild(a);
+            a.click(); // Trigger the download
 
-}
+            // Remove the link from the DOM
+            document.body.removeChild(a);
 
-} else {
+            appendMessage(`File received: ${data.fileInfo.name}`, 'incoming');
 
-console.warn("Received non-object data:", data);
+        } else {
 
-}
+            console.warn("Unknown data type:", data);
+
+        }
+
+    } else {
+
+        console.warn("Received non-object data:", data);
+
+    }
 }
 
 function displayContacts() {
 
-contactList.innerHTML = '';  // Clear the list first
+    contactList.innerHTML = ''; // Clear the list first
 
-contacts.forEach(contact => {
+    contacts.forEach(contact => {
 
-const listItem = document.createElement('li');
+        const listItem = document.createElement('li');
 
-listItem.innerHTML = `
+        listItem.innerHTML = `
 
-<span>${contact.displayName}</span>
+            <span>${contact.displayName}</span>
 
-<button class="rename-contact-btn" data-id="${contact.peerId}">Rename</button>
+            <button class="rename-contact-btn" data-id="${contact.peerId}">Rename</button>
 
-<button class="delete-contact-btn" data-id="${contact.peerId}">Delete</button>
+            <button class="delete-contact-btn" data-id="${contact.peerId}">Delete</button>
 
-`;
+        `;
 
-listItem.classList.toggle('selected', currentContact && currentContact.peerId === contact.peerId);
+        listItem.classList.toggle('selected', currentContact && currentContact.peerId === contact.peerId);
 
-// Connect on click
+        // Connect on click
 
-listItem.addEventListener('click', () => {
+        listItem.addEventListener('click', () => {
 
-if (conn) {
+            if (conn) {
 
-conn.close();
+                conn.close();
 
-}
+            }
 
-connectToPeer(contact.peerId);
+            connectToPeer(contact.peerId);
 
-currentContact = contact;
+            currentContact = contact;
 
-noPeerMessage.textContent = `Now connected to peer ${contact.displayName}.`;
+            noPeerMessage.textContent = `Now connected to peer ${contact.displayName}.`;
 
-displayContacts();
+            displayContacts();
 
-});
+        });
 
-// Rename button click
+        // Rename button click
 
-const renameButton = listItem.querySelector('.rename-contact-btn');
+        const renameButton = listItem.querySelector('.rename-contact-btn');
 
-renameButton.addEventListener('click', (event) => {
+        renameButton.addEventListener('click', (event) => {
 
-event.stopPropagation(); // Prevent connection attempt
+            event.stopPropagation(); // Prevent connection attempt
 
-renameContact(contact.peerId);
+            renameContact(contact.peerId);
 
-});
+        });
 
-// Delete button click
+        // Delete button click
 
-const deleteButton = listItem.querySelector('.delete-contact-btn');
+        const deleteButton = listItem.querySelector('.delete-contact-btn');
 
-deleteButton.addEventListener('click', (event) => {
+        deleteButton.addEventListener('click', (event) => {
 
-event.stopPropagation(); // Prevent connection attempt
+            event.stopPropagation(); // Prevent connection attempt
 
-deleteContact(contact.peerId);
+            deleteContact(contact.peerId);
 
-});
+        });
 
-contactList.appendChild(listItem);
+        contactList.appendChild(listItem);
 
-});
+    });
 }
 
 function addContact(contactId) {
 
-if (contacts.find(c => c.peerId === contactId)) {
+    if (contacts.find(c => c.peerId === contactId)) {
 
-alert("Contact ID already exists.");
+        alert("Contact ID already exists.");
 
-return;
+        return;
 
-}
+    }
 
-const peerIdRegex = /^AMC-\\d{4}-[A-Za-z0-9]{3}-\\d{4}$/;
+    const peerIdRegex = /^AMC-\\d{4}-[A-Za-z0-9]{3}-\\d{4}$/;
 
-if (!peerIdRegex.test(contactId)) {
+    if (!peerIdRegex.test(contactId)) {
 
-alert("Invalid Contact ID format. Use AMC-XXXX-XXX-XXXX.");
+        alert("Invalid Contact ID format. Use AMC-XXXX-XXX-XXXX.");
 
-return;
+        return;
 
-}
+    }
 
-const displayName = prompt("Enter a display name for this contact:");
+    const displayName = prompt("Enter a display name for this contact:");
 
-if (!displayName) return;
+    if (!displayName) return;
 
-const newContact = { peerId: contactId, displayName: displayName };
+    const newContact = { peerId: contactId, displayName: displayName };
 
-contacts.push(newContact);
+    contacts.push(newContact);
 
-localStorage.setItem(CONTACTS_KEY, JSON.stringify(contacts));
+    localStorage.setItem(CONTACTS_KEY, JSON.stringify(contacts));
 
-displayContacts();
+    displayContacts();
 }
 
 function renameContact(peerId) {
 
-const newDisplayName = prompt("Enter a new display name:");
+    const newDisplayName = prompt("Enter a new display name:");
 
-if (!newDisplayName) return;
+    if (!newDisplayName) return;
 
-const contact = contacts.find(c => c.peerId === peerId);
+    const contact = contacts.find(c => c.peerId === peerId);
 
-if (contact) {
+    if (contact) {
 
-contact.displayName = newDisplayName;
+        contact.displayName = newDisplayName;
 
-localStorage.setItem(CONTACTS_KEY, JSON.stringify(contacts));
+        localStorage.setItem(CONTACTS_KEY, JSON.stringify(contacts));
 
-displayContacts();
+        displayContacts();
 
-}
+    }
 }
 
 function deleteContact(peerId) {
 
-contacts = contacts.filter(contact => contact.peerId !== peerId);
+    contacts = contacts.filter(contact => contact.peerId !== peerId);
 
-localStorage.setItem(CONTACTS_KEY, JSON.stringify(contacts));
+    localStorage.setItem(CONTACTS_KEY, JSON.stringify(contacts));
 
-displayContacts();
+    displayContacts();
 
-if (currentContact && currentContact.peerId === peerId) {
+    if (currentContact && currentContact.peerId === peerId) {
 
-currentContact = null;
+        currentContact = null;
 
-}
+    }
 }
 
 function connectToPeer(peerId) {
 
-if (conn) {
+    if (conn) {
 
-conn.close();
+        conn.close();
 
-isConnected = false;
+        isConnected = false;
 
-}
+    }
 
-conn = peer.connect(peerId, { reliable: true });
+    conn = peer.connect(peerId, { reliable: true });
 
-isConnected = true;
+    isConnected = true;
 
-conn.on('open', function () {
+    conn.on('open', function () {
 
-console.log("Connected to:", peerId);
+        console.log("Connected to:", peerId);
 
-appendMessage('Connected!', 'incoming');
+        appendMessage('Connected!', 'incoming');
 
-});
+    });
 
-conn.on('data', function (data) {
+    conn.on('data', function (data) {
 
-handleData(data);
+        handleData(data);
 
-});
+    });
 
-conn.on('close', function () {
+    conn.on('close', function () {
 
-isConnected = false;
+        isConnected = false;
 
-appendMessage('Connection closed', 'incoming');
+        appendMessage('Connection closed', 'incoming');
 
-});
+    });
 }
 
 // Run on page load
 window.onload = async function () {
 
-const peerId = await getOrCreatePeerId();
+    const peerId = await getOrCreatePeerId();
 
-const peerConfig = {
+    const peerConfig = {
 
-host: '0.peerjs.com',
+        host: '0.peerjs.com',
 
-port: 443,
+        port: 443,
 
-path: '/',
+        path: '/',
 
-secure: true,
+        secure: true,
 
-key: 'peerjs',
+        key: 'peerjs',
 
-debug: 3,
+        debug: 3,
 
-config: {
+        config: {
 
-iceServers: [{
+            iceServers: [{
 
-urls: ["stun:eu-turn4.xirsys.com"]
+                urls: ["stun:eu-turn4.xirsys.com"]
 
-}, {
+            }, {
 
-username: "vXp0ehXgRlCJeYdQBR4hjAdVn42ttLfds4jTAVrRmD5RTceXb9qp-sCf1PEw5eWiAAAAAGggndthcmNoaWVtdG9w",
+                username: "vXp0ehXgRlCJeYdQBR4hjAdVn42ttLfds4jTAVrRmD5RTceXb9qp-sCf1PEw5eWiAAAAAGggndthcmNoaWVtdG9w",
 
-credential: "fab9d62a-2e66-11f0-b4dc-0242ac140004",
+                credential: "fab9d62a-2e66-11f0-b4dc-0242ac140004",
 
-urls: [
+                urls: [
 
-"turn:eu-turn4.xirsys.com:80?transport=udp",
+                    "turn:eu-turn4.xirsys.com:80?transport=udp",
 
-"turn:eu-turn4.xirsys.com:3478?transport=udp",
+                    "turn:eu-turn4.xirsys.com:3478?transport=udp",
 
-"turn:eu-turn4.xirsys.com:80?transport=tcp",
+                    "turn:eu-turn4.xirsys.com:80?transport=tcp",
 
-"turn:eu-turn4.xirsys.com:3478?transport=tcp",
+                    "turn:eu-turn4.xirsys.com:3478?transport=tcp",
 
-"turns:eu-turn4.xirsys.com:443?transport=tcp",
+                    "turns:eu-turn4.xirsys.com:443?transport=tcp",
 
-"turns:eu-turn4.xirsys.com:5349?transport=tcp"
+                    "turns:eu-turn4.xirsys.com:5349?transport=tcp"
 
-]
+                ]
 
-}]
+            }]
 
-}
+        }
 
-};
+    };
 
-peer = new Peer(peerId, peerConfig);
+    peer = new Peer(peerId, peerConfig);
 
-peer.on('open', function (id) {
+    peer.on('open', function (id) {
 
-console.log("Peer object on 'open':", peer);
+        console.log("Peer object on 'open':", peer);
 
-myPeerIdDiv.innerText = 'My Peer ID: ' + id;
+        myPeerIdDiv.innerText = 'My Peer ID: ' + id;
 
-displayContacts();
+        displayContacts();
 
-});
+    });
 
-peer.on('error', function (err) {
+    peer.on('error', function (err) {
 
-console.error("PeerJS error:", err);
+        console.error("PeerJS error:", err);
 
-});
+    });
 
-// New Incoming connection
+    // New Incoming connection
 
-peer.on('connection', function (connection) {
+    peer.on('connection', function (connection) {
 
-console.log("Incoming Connection object: ", connection)
+        console.log("Incoming Connection object: ", connection)
 
-if (conn) {
+        if (conn) {
 
-conn.close(); // Close current connection if any
+            conn.close(); // Close current connection if any
 
-}
+        }
 
-conn = connection;
+        conn = connection;
 
-isConnected = true;
+        isConnected = true;
 
-appendMessage('Connected!', 'incoming');
+        appendMessage('Connected!', 'incoming');
 
-conn.on('data', function (data) {
+        conn.on('data', function (data) {
 
-handleData(data);
+            handleData(data);
 
-});
+        });
 
-conn.on('close', function () {
+        conn.on('close', function () {
 
-isConnected = false;
+            isConnected = false;
 
-appendMessage('Connection closed', 'incoming');
+            appendMessage('Connection closed', 'incoming');
 
-});
+        });
 
-});
+    });
 
-// Listener for the "Add Contact" button
+    // Listener for the "Add Contact" button
 
-addContactBtn.addEventListener('click', function () {
+    addContactBtn.addEventListener('click', function () {
 
-const newContactId = newContactIdInput.value.trim();
+        const newContactId = newContactIdInput.value.trim();
 
-if (newContactId) {
+        if (newContactId) {
 
-addContact(newContactId);
+            addContact(newContactId);
 
-newContactIdInput.value = '';
+            newContactIdInput.value = '';
 
-}
+        }
 
-});
+    });
 
-// Listener for the "Send Message" button
+    // Listener for the "Send Message" button
+    sendButton.addEventListener('click', function () {
+        const message = messageInput.value.trim();
+        if (message) {
+            sendMessage('chat', message);
+            appendMessage(message, 'outgoing');
+            messageInput.value = '';
+        }
+    });
 
-sendButton.addEventListener('click', function () {
+    //File sending
+    sendFileButton.addEventListener('click', function() {
+        const file = fileInput.files[0];
 
-const message = messageInput.value.trim();
+        if (!file) {
+            alert("Please select a file.");
+            return;
+        }
 
-if (message) {
+        const reader = new FileReader();
 
-sendMessage(message);
+        reader.onload = function(event) {
+            const arrayBuffer = event.target.result;
+            const fileInfo = {
+                name: file.name,
+                size: file.size,
+                type: file.type,
+            };
+            sendMessage('file', arrayBuffer, fileInfo);
+            appendMessage(`File sent: ${file.name}`, 'outgoing');
+            fileInput.value = '';
+        };
 
-}
+        reader.readAsArrayBuffer(file);
+    });
 
-});
-
-displayContacts();
+    // Rest of your existing code (displayContacts(), addContact(), etc.)
+    displayContacts();
 };
