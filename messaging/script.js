@@ -53,9 +53,22 @@ function saveMyPeerIdToLocalStorage(peerId) {
     localStorage.setItem(MY_PEER_ID_KEY, peerId);
 }
 
+// --- Generate a Peer ID in the correct format ---
+function generatePeerId() {
+    const numbers = Math.floor(1000 + Math.random() * 9000);  // 4 numbers
+    const letters = String.fromCharCode(
+        65 + Math.floor(Math.random() * 26),  // Uppercase letter
+        65 + Math.floor(Math.random() * 26),  // Uppercase letter
+        65 + Math.floor(Math.random() * 26)   // Uppercase letter
+    ).toLowerCase();  // Convert to lowercase
+    const numbers2 = Math.floor(1000 + Math.random() * 9000); // 4 more numbers
+
+    return `AMC-${numbers}-${letters}-${numbers2}`;
+}
+
 function addContactToList(contact) {
     const listItem = document.createElement('li');
-    listItem.textContent = `${contact.displayName} (${contact.peerId})`; // Display name + PeerId
+    listItem.textContent = `${contact.displayName} (${contact.peerId})`;
 
     listItem.addEventListener('click', function () {
         connectToPeer(contact.peerId);
@@ -75,26 +88,23 @@ function addContactToList(contact) {
 function initializePeer() {
     let peerId = getMyPeerIdFromLocalStorage();
 
+    if (!peerId) {
+        peerId = generatePeerId(); // Generate a new ID *only* if one isn't in localStorage
+        saveMyPeerIdToLocalStorage(peerId); // Immediately save it
+    }
+
     const peerOptions = {
         config: {
             iceServers: ICE_SERVERS
-        }
+        },
+        id: peerId  // *Always* use the peerId we have (either loaded or generated)
     };
-
-    if (peerId) {
-        console.log("Using existing Peer ID from localStorage: " + peerId);
-        peerOptions.id = peerId; // Set the ID if found in localStorage
-    }
 
     peer = new Peer(peerOptions);
 
     peer.on('open', function (id) {
         console.log('My Peer ID is: ' + id);
         myPeerIdDiv.textContent = "My Peer ID: " + id;
-
-        if (!peerId) { // If we generated a new ID, save it
-            saveMyPeerIdToLocalStorage(id);
-        }
     });
 
     peer.on('connection', function (connection) {
@@ -253,9 +263,9 @@ addContactBtn.addEventListener('click', function () {
             contacts.push(newContact);
             saveContacts(contacts);
 
-            addContactToList(newContact);  // Add to the UI
+            addContactToList(newContact);
 
-            newContactIdInput.value = ''; // Clear the input
+            newContactIdInput.value = '';
         }
     } else {
         alert("Invalid Peer ID format. Use AMC-1234-AbC-5678 format.");
