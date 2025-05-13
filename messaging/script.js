@@ -16,6 +16,26 @@ const imageInput = document.getElementById('imageInput');
 
 let currentPeerId = null; // Tracks the currently selected peer
 
+// --- Local Storage ---
+const CONTACTS_KEY = 'p2p_chat_contacts';
+
+function loadContacts() {
+    const storedContacts = localStorage.getItem(CONTACTS_KEY);
+    if (storedContacts) {
+        const contacts = JSON.parse(storedContacts);
+        contacts.forEach(addContactToList); // Render from local storage
+    }
+}
+
+function saveContacts() {
+    const contacts = [];
+    document.querySelectorAll('#contact-list li').forEach(item => {
+        contacts.push(item.textContent);  // Get text from list item
+    });
+    localStorage.setItem(CONTACTS_KEY, JSON.stringify(contacts));
+}
+
+// --- PeerJS Initialization ---
 function initializePeer() {
     peer = new Peer();
 
@@ -141,6 +161,25 @@ function appendMessage(message, type, isImage = false) {
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
+function addContactToList(peerId) {
+    const listItem = document.createElement('li');
+    listItem.textContent = peerId;
+
+    listItem.addEventListener('click', function () {
+        connectToPeer(peerId);
+        currentPeerId = peerId; // Set the connected peer ID
+        updateNoPeerMessage(); // Hide the no-peer message
+        // Remove "selected" class from all list items
+        document.querySelectorAll('#contact-list li').forEach(item => {
+            item.classList.remove('selected');
+        });
+        // Add "selected" class to the clicked item
+        listItem.classList.add('selected');
+    });
+
+    contactList.appendChild(listItem);
+}
+
 // --- Event Listeners ---
 sendButton.addEventListener('click', function () {
     const messageText = messageInput.value.trim();
@@ -168,31 +207,18 @@ addContactBtn.addEventListener('click', function () {
     const newContactId = newContactIdInput.value.trim();
 
     if (newContactId && /^AMC-\d{4}-[A-Za-z0-9]{3}-\d{4}$/.test(newContactId)) {
-        addContact(newContactId);
+        addContactToList(newContactId); // Add the contact to the list
+
+        saveContacts(); // Save updated contact list
         newContactIdInput.value = ''; // Clear the input
     } else {
         alert("Invalid Peer ID format. Use AMC-1234-AbC-5678 format.");
     }
 });
 
-function addContact(peerId) {
-    const listItem = document.createElement('li');
-    listItem.textContent = peerId;
-
-    listItem.addEventListener('click', function () {
-        connectToPeer(peerId);
-        currentPeerId = peerId; // Set the connected peer ID
-        updateNoPeerMessage(); // Hide the no-peer message
-        // Remove "selected" class from all list items
-        document.querySelectorAll('#contact-list li').forEach(item => {
-            item.classList.remove('selected');
-        });
-        // Add "selected" class to the clicked item
-        listItem.classList.add('selected');
-    });
-
-    contactList.appendChild(listItem);
-}
+contactList.addEventListener('DOMNodeInserted', saveContacts);
+contactList.addEventListener('DOMNodeRemoved', saveContacts);
 
 // Initialization
 initializePeer();
+loadContacts();
