@@ -2,37 +2,37 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>P2P Groups Chat</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>P2P Group Chat</title>
   <link rel="stylesheet" href="groups.css">
-  <link rel="stylesheet" href="https://archiem-codes.github.io/p2pfiles/messaging/style.css">
 </head>
 <body>
-  <div id="controls">
-    <h2>Create or Join Group</h2>
-    <input id="groupIdInput" placeholder="AMCG-12345-AB" />
-    <input id="groupPasswordInput" type="password" placeholder="Password" />
-    <button id="createGroupBtn">Create Group</button>
-    <button id="joinGroupBtn">Join Group</button>
-  </div>
-
-  <div id="groupList">
-    <h2>Your Groups</h2>
-    <ul id="groupsUl"></ul>
-  </div>
-
-  <div id="chatSection" class="hidden">
-    <h2 id="currentGroupTitle"></h2>
-    <div id="members">
-      <h3>Members</h3>
-      <ul id="membersUl"></ul>
+  <div class="sidebar">
+    <h2>Groups</h2>
+    <div class="group-form">
+      <input id="groupId" placeholder="AMCG-12345-AB">
+      <input id="groupPwd" type="password" placeholder="Password">
+      <button id="createBtn">Create</button>
+      <button id="joinBtn">Join</button>
     </div>
-    <div id="messages"></div>
-    <input id="messageInput" placeholder="Type a message…" />
-    <button id="sendMsgBtn">Send</button>
+    <ul id="groupList"></ul>
   </div>
-
+  <div class="chat">
+    <header>
+      <h2 id="currentGroup">Select a group</h2>
+    </header>
+    <div class="members">
+      <h3>Members</h3>
+      <ul id="memberList"></ul>
+    </div>
+    <div class="messages" id="messages"></div>
+    <div class="input-area">
+      <input id="msgInput" placeholder="Type a message...">
+      <button id="sendBtn">➤</button>
+    </div>
+  </div>
   <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-  <script src="https://archiem-codes.github.io/p2pfiles/messaging/peerjs-groups.min.js"></script>
+  <script src="peerjs-groups.min.js"></script>
   <script src="groups.js"></script>
 </body>
 </html>
