@@ -7,6 +7,14 @@ const messageInput = document.getElementById('messageInput');
 const sendButton = document.getElementById('sendButton');
 const noPeerMessage = document.getElementById("no-peer-message");
 
+// Get the popup elements
+const popupChat = document.getElementById('popup-chat');
+const popupContactName = document.getElementById('popup-contact-name');
+const popupMessages = document.getElementById('popup-messages');
+const popupMessageInput = document.getElementById('popup-message-input');
+const popupSendBtn = document.getElementById('popup-send-btn');
+const popupCloseBtn = document.getElementById('popup-close-btn');
+
 let peer = null;
 let conn = null;
 let isConnected = false;
@@ -14,9 +22,11 @@ let currentContact = null;
 
 // Local storage keys
 const CONTACTS_KEY = 'contacts';
+const MESSAGES_KEY = 'messages';
 
 // Load data from local storage
 let contacts = JSON.parse(localStorage.getItem(CONTACTS_KEY)) || [];
+let messages = JSON.parse(localStorage.getItem(MESSAGES_KEY)) || {};
 
 // Function to generate a random Peer ID
 function generatePeerId() {
@@ -99,40 +109,41 @@ function decodeUTF8(bytes) {
     return new TextDecoder().decode(bytes);
 }
 
-function appendMessage(message, type) {
-
+function appendMessage(message, type, target) {
     const messageDiv = document.createElement('div');
-
     messageDiv.classList.add('message', type);
-
     const timestamp = new Date().toLocaleTimeString();
-
     messageDiv.innerHTML = `<span class="timestamp">${timestamp}</span> ${message}`;
 
-    messagesDiv.appendChild(messageDiv);
-
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    target.appendChild(messageDiv);
+    target.scrollTop = target.scrollHeight;
 }
 
-function sendMessage(message) {
-
-    if (!isConnected || !conn) {
-
-        alert("Not connected!");
-
+function sendMessage(message, peerId) {
+    if (!peerId) {
+        alert("No peer selected.");
         return;
-
     }
 
+    if (!conn || conn.peer !== peerId) {
+        connectToPeer(peerId); // Ensure connection exists or re-establish
+    }
+    if (!isConnected) {
+        alert("Not connected to peer.");
+        return;
+    }
     const sanitizedMessage = DOMPurify.sanitize(message);
-
-    const encodedMessage = encodeUTF8(sanitizedMessage);  // Encode the message
+    const encodedMessage = encodeUTF8(sanitizedMessage);
 
     conn.send({ type: 'chat', message: encodedMessage });
 
-    appendMessage(sanitizedMessage, 'outgoing');
+    // Append to the popup's messages
+    appendMessage(sanitizedMessage, 'outgoing', popupMessages);
 
-    messageInput.value = '';
+    // Store the message
+    storeMessage(peerId, sanitizedMessage, 'outgoing');
+
+    popupMessageInput.value = '';
 }
 
 function handleData(data) {
@@ -146,8 +157,10 @@ function handleData(data) {
             // Decode the message
 
             const decodedMessage = decodeUTF8(data.message);
+            const sanitizedMessage = DOMPurify.sanitize(decodedMessage);
 
-            appendMessage(DOMPurify.sanitize(decodedMessage), 'incoming');
+            appendMessage(sanitizedMessage, 'incoming', popupMessages);
+            storeMessage(conn.peer, sanitizedMessage, 'incoming');
 
         } else {
 
@@ -183,24 +196,10 @@ function displayContacts() {
         listItem.classList.toggle('selected', currentContact && currentContact.peerId === contact.peerId);
 
         // Connect on click
-
         listItem.addEventListener('click', () => {
-
-            if (conn) {
-
-                conn.close();
-
-            }
-
-            connectToPeer(contact.peerId);
-
-            currentContact = contact;
-
-            noPeerMessage.textContent = `Now connected to peer ${contact.displayName}.`;
-
-            displayContacts();
-
+            openChatPopup(contact);
         });
+
 
         // Rename button click
 
@@ -300,40 +299,86 @@ function deleteContact(peerId) {
 
 function connectToPeer(peerId) {
 
-    if (conn) {
-
-        conn.close();
-
-        isConnected = false;
-
+    if (conn && conn.peer === peerId) {
+        console.log("Already connected to this peer.");
+        return;
     }
+    if (conn) {
+        conn.close();
+    }
+
 
     conn = peer.connect(peerId, { reliable: true });
 
-    isConnected = true;
 
     conn.on('open', function () {
-
         console.log("Connected to:", peerId);
-
-        appendMessage('Connected!', 'incoming');
-
+        isConnected = true;
+        appendMessage('Connected!', 'incoming', popupMessages);
     });
 
     conn.on('data', function (data) {
-
         handleData(data);
-
     });
 
     conn.on('close', function () {
-
         isConnected = false;
-
-        appendMessage('Connection closed', 'incoming');
-
+        appendMessage('Connection closed', 'incoming', popupMessages);
     });
 }
+
+function storeMessage(peerId, message, type) {
+    const now = new Date();
+    const messageObject = {
+        content: message,
+        type: type,
+        timestamp: now.toISOString()
+    };
+
+    if (!messages[peerId]) {
+        messages[peerId] = [];
+    }
+    messages[peerId].push(messageObject);
+    localStorage.setItem(MESSAGES_KEY, JSON.stringify(messages));
+}
+
+function getRecentMessages(peerId) {
+    const now = new Date();
+    const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000)); // 24 hours ago
+    if (!messages[peerId]) {
+        return [];
+    }
+    return messages[peerId].filter(message => new Date(message.timestamp) >= twentyFourHoursAgo);
+}
+
+function displayChatHistory(peerId) {
+    popupMessages.innerHTML = ''; // Clear existing messages
+    const chatHistory = getRecentMessages(peerId);
+    chatHistory.forEach(message => {
+        appendMessage(message.content, message.type, popupMessages);
+    });
+}
+
+function openChatPopup(contact) {
+    currentContact = contact;
+    popupContactName.innerText = contact.displayName;
+
+    displayChatHistory(contact.peerId);
+
+    connectToPeer(contact.peerId);
+
+    popupChat.style.display = 'block';
+}
+
+function closeChatPopup() {
+    popupChat.style.display = 'none';
+    if (conn) {
+        conn.close();
+        isConnected = false;
+        conn = null;
+    }
+}
+
 
 // Run on page load
 window.onload = async function () {
@@ -422,7 +467,7 @@ window.onload = async function () {
 
         isConnected = true;
 
-        appendMessage('Connected!', 'incoming');
+        appendMessage('Connected!', 'incoming', messagesDiv);
 
         conn.on('data', function (data) {
 
@@ -434,7 +479,7 @@ window.onload = async function () {
 
             isConnected = false;
 
-            appendMessage('Connection closed', 'incoming');
+            appendMessage('Connection closed', 'incoming', messagesDiv);
 
         });
 
@@ -457,18 +502,21 @@ window.onload = async function () {
     });
 
     // Listener for the "Send Message" button
-
     sendButton.addEventListener('click', function () {
-
         const message = messageInput.value.trim();
-
         if (message) {
-
-            sendMessage(message);
-
+            sendMessage(message, currentContact ? currentContact.peerId : null);
         }
-
     });
+    // Popup event listeners
+    popupSendBtn.addEventListener('click', () => {
+        const message = popupMessageInput.value.trim();
+        if (message) {
+            sendMessage(message, currentContact.peerId);
+        }
+    });
+
+    popupCloseBtn.addEventListener('click', closeChatPopup);
 
     displayContacts();
 };
