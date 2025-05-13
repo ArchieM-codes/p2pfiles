@@ -14,9 +14,8 @@ const iceServers = [
   }
 ];
 
-
 // Validate AMCG-12345-AB
-const ID_RE = /^AMCG-\d{5}-[A-Za-z]{2}$/;
+const ID_RE = /^AMCG-\\d{5}-[A-Za-z]{2}$/;
 
 let pg, peerId = 'u-'+Math.random().toString(36).slice(2,8);
 const groups = {}, ui = {};
@@ -27,24 +26,28 @@ const groups = {}, ui = {};
  .forEach(id => ui[id] = document.getElementById(id));
 
 // Init Peer.js Groups
-pg = new PeerGroup(err => err&&console.error(err), {
-  host: '0.peerjs.com',
-        port: 443,
-        path: '/',
-        secure: true,
-        key: 'peerjs',
-        debug: 3,
-        config: { iceServers });
+pg = new PeerGroup((err) => {
+    if (err) {
+        console.error("PeerGroup initialization error:", err);
+    }
+}, {
+    host: '0.peerjs.com',
+    port: 443,
+    secure: true,
+    config: {
+        iceServers: iceServers  // Correct placement of iceServers
+    }
+});
 
 // Event handlers
-pg.on('joined', ({groupId,creator}) => {
+pg.on('joined', ({groupId, creator}) => {
   groups[groupId].isAdmin = creator===pg.peer.id; renderList();
 });
-pg.on('peer-list', ({groupId,peerList}) => updateMembers(groupId,peerList));
-pg.on('message', ({groupId,peerId,data}) => addMsg(groupId,peerId,data.text));
-pg.on('user-left', ({groupId,peerId}) => {
-  groups[groupId].peers = groups[groupId].peers.filter(p=>p!==peerId);
-  if(ui.currentGroup.textContent.startsWith(groupId)) updateMembers(groupId,groups[groupId].peers);
+pg.on('peer-list', ({groupId, peerList}) => updateMembers(groupId, peerList));
+pg.on('message', ({groupId, peerId, data}) => addMsg(groupId, peerId, data.text));
+pg.on('user-left', ({groupId, peerId}) => {
+  groups[groupId].peers = groups[groupId].peers.filter(p => p !== peerId);
+  if(ui.currentGroup.textContent.startsWith(groupId)) updateMembers(groupId, groups[groupId].peers);
 });
 
 function handle(create) {
