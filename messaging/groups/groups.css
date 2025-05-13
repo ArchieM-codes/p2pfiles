@@ -1,11 +1,52 @@
-body { font-family: sans-serif; margin: 0; padding: 0; display: flex; }
-#controls, #groupList { width: 200px; padding: 10px; border-right: 1px solid #ccc; }
-#chatSection { flex: 1; padding: 10px; display: flex; flex-direction: column; }
-.hidden { display: none; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { display: flex; height: 100vh; font-family: sans-serif; }
+.sidebar {
+  width: 280px; background: #f7f7f7; border-right: 1px solid #ddd; padding: 1rem; overflow-y: auto;
+}
+.sidebar h2 { margin-bottom: .5rem; }
+.group-form { display: flex; flex-direction: column; gap: .5rem; }
+.group-form input, .group-form button { padding: .5rem; font-size: 1rem; }
+.group-form button { cursor: pointer; }
+#groupList { list-style: none; margin-top: 1rem; }
+#groupList li {
+  padding: .5rem; border: 1px solid #ddd; margin-bottom: .5rem;
+  cursor: pointer; border-radius: 4px; background: #fff;
+}
+#groupList li.active { background: #e0f7fa; }
 
-#members, #messages { border: 1px solid #ddd; padding: 5px; margin-bottom: 10px; }
-#members { max-height: 150px; overflow-y: auto; }
-#messages { flex: 1; overflow-y: auto; }
-#messages .msg { margin: 5px 0; }
-#membersUl li { display: flex; justify-content: space-between; }
-#membersUl li button { margin-left: 5px; }
+.chat {
+  flex: 1; display: flex; flex-direction: column; background: #fff;
+}
+.chat header { padding: 1rem; border-bottom: 1px solid #ddd; background: #f0f0f0; }
+.members {
+  padding: .5rem 1rem; border-bottom: 1px solid #ddd; background: #fafafa;
+}
+.members h3 { margin-bottom: .5rem; }
+.members ul { list-style: none; max-height: 6rem; overflow-y: auto; }
+.members li { padding: .25rem 0; }
+.messages {
+  flex: 1; padding: 1rem; overflow-y: auto; background: #eaeaea;
+}
+.messages .msg {
+  margin-bottom: .75rem; padding: .5rem; border-radius: 4px; background: #fff;
+}
+.messages .msg.self { text-align: right; background: #d1ffd6; }
+.input-area {
+  display: flex; padding: .5rem; border-top: 1px solid #ddd;
+  background: #f7f7f7;
+}
+.input-area input {
+  flex: 1; padding: .75rem; font-size: 1rem; border: 1px solid #ccc; border-radius: 20px;
+}
+.input-area button {
+  margin-left: .5rem; padding: .75rem 1rem; font-size: 1.2rem;
+  border: none; background: #007bff; color: #fff; border-radius: 50%;
+  cursor: pointer;
+}
+
+@media (max-width: 600px) {
+  .sidebar { display: none; }
+  body.sidebar-open .sidebar {
+    position: absolute; z-index: 10; display: block; width: 80%; height: 100%;
+  }
+}
