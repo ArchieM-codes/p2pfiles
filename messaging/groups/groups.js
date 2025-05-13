@@ -1,124 +1,113 @@
-// Regex for group ID
-const GROUP_ID_REGEX = /^AMCG-\d{5}-[A-Za-z]{2}$/;
+// Validate AMCG-12345-AB
+const ID_RE = /^AMCG-\d{5}-[A-Za-z]{2}$/;
 
-let peerId = null;
-let peerGroupLib = null;
-const groups = {};      // { groupId: { groupObj, password, isAdmin } }
-let activeGroupId = null;
+let pg, peerId = 'u-'+Math.random().toString(36).slice(2,8);
+const groups = {}, ui = {};
 
-// UI elements
-const gidIn = document.getElementById('groupIdInput'),
-      pwdIn = document.getElementById('groupPasswordInput'),
-      createBtn = document.getElementById('createGroupBtn'),
-      joinBtn   = document.getElementById('joinGroupBtn'),
-      groupsUl  = document.getElementById('groupsUl'),
-      chatSec   = document.getElementById('chatSection'),
-      currentTitle = document.getElementById('currentGroupTitle'),
-      membersUl = document.getElementById('membersUl'),
-      messages  = document.getElementById('messages'),
-      msgIn     = document.getElementById('messageInput'),
-      sendBtn   = document.getElementById('sendMsgBtn');
+// Grab elements
+['groupId','groupPwd','createBtn','joinBtn','groupList',
+ 'currentGroup','memberList','messages','msgInput','sendBtn']
+ .forEach(id => ui[id] = document.getElementById(id));
 
-// Initialize Peer.js Groups
-window.onload = () => {
-  peerId = 'user-' + Math.random().toString(36).substr(2, 8);
-  peerGroupLib = new PeerGroup(err => err && console.error(err), { host: '0.peerjs.com', port: 443, secure: true });
+// Init Peer.js Groups
+pg = new PeerGroup(err => err&&console.error(err), {
+  host: '0.peerjs.com',
+        port: 443,
+        path: '/',
+        secure: true,
+        key: 'peerjs',
+        debug: 3,
+        config: {
+            iceServers: [{
+                urls: ["stun:eu-turn4.xirsys.com"]
+            }, {
+                username: "vXp0ehXgRlCJeYdQBR4hjAdVn42ttLfds4jTAVrRmD5RTceXb9qp-sCf1PEw5eWiAAAAAGggndthcmNoaWVtdG9w",
+                credential: "fab9d62a-2e66-11f0-b4dc-0242ac140004",
+                urls: [
+                    "turn:eu-turn4.xirsys.com:80?transport=udp",
+                    "turn:eu-turn4.xirsys.com:3478?transport=udp",
+                    "turn:eu-turn4.xirsys.com:80?transport=tcp",
+                    "turn:eu-turn4.xirsys.com:3478?transport=tcp",
+                    "turns:eu-turn4.xirsys.com:443?transport=tcp",
+                    "turns:eu-turn4.xirsys.com:5349?transport=tcp"
+                ]
+            }]
+        }});
 
-  peerGroupLib.on('joined', info => {
-    const { groupId, peerId: pid, creator } = info;
-    groups[groupId].isAdmin = creator === peerGroupLib.peer.id;
-    refreshUI();
-  });
+// Event handlers
+pg.on('joined', ({groupId,creator}) => {
+  groups[groupId].isAdmin = creator===pg.peer.id; renderList();
+});
+pg.on('peer-list', ({groupId,peerList}) => updateMembers(groupId,peerList));
+pg.on('message', ({groupId,peerId,data}) => addMsg(groupId,peerId,data.text));
+pg.on('user-left', ({groupId,peerId}) => {
+  groups[groupId].peers = groups[groupId].peers.filter(p=>p!==peerId);
+  if(ui.currentGroup.textContent.startsWith(groupId)) updateMembers(groupId,groups[groupId].peers);
+});
 
-  peerGroupLib.on('peer-list', info => {
-    // contains list of all joined peers
-    updateMembers(info.groupId, info.peerList);
-  });
-
-  peerGroupLib.on('message', info => {
-    appendMessage(info.groupId, info.peerId, info.data);
-  });
-
-  peerGroupLib.on('user-left', info => {
-    removeMember(info.groupId, info.peerId);
-  });
-
-  // Button handlers
-  createBtn.onclick = () => handleGroup(true);
-  joinBtn.onclick   = () => handleGroup(false);
-  sendBtn.onclick   = () => {
-    const txt = msgIn.value.trim();
-    if (!txt || !activeGroupId) return;
-    peerGroupLib.message(activeGroupId, { text: txt });
-    appendMessage(activeGroupId, 'Me', txt);
-    msgIn.value = '';
-  };
-};
-
-function handleGroup(isCreate) {
-  const gid = gidIn.value.trim(), pwd = pwdIn.value;
-  if (!GROUP_ID_REGEX.test(gid)) return alert('Invalid Group ID format.');
-  if (!pwd) return alert('Password required.');
-  if (isCreate && groups[gid]) return alert('Group already exists.');
-
-  if (isCreate) {
-    // register password
-    groups[gid] = { password: pwd, isAdmin: false };
-    peerGroupLib.createGroup(gid, pwd);
-  } else {
-    if (!groups[gid]) groups[gid] = { password: pwd, isAdmin: false };
-    else if (groups[gid].password !== pwd) return alert('Wrong password.');
-    peerGroupLib.joinGroup(gid, pwd);
-  }
-  refreshUI();
+function handle(create) {
+  const gid = ui.groupId.value.trim(), pwd = ui.groupPwd.value;
+  if(!ID_RE.test(gid)) return alert('Invalid ID format');
+  if(!pwd) return alert('Password required');
+  if(create && groups[gid]) return alert('Group exists');
+  if(!create && groups[gid]?.pwd!==pwd) return alert('Wrong password');
+  groups[gid] = groups[gid]||{pwd,peers:[],isAdmin:false};
+  pg[create?'createGroup':'joinGroup'](gid,pwd);
+  renderList();
 }
 
-function refreshUI() {
-  groupsUl.innerHTML = '';
+function renderList(){
+  ui.groupList.innerHTML = '';
   Object.keys(groups).forEach(gid => {
     const li = document.createElement('li');
     li.textContent = gid;
-    li.onclick = () => activateGroup(gid);
-    groupsUl.appendChild(li);
+    li.classList.toggle('active', ui.currentGroup.textContent.startsWith(gid));
+    li.onclick = () => selectGroup(gid);
+    ui.groupList.append(li);
   });
 }
 
-function activateGroup(gid) {
-  activeGroupId = gid;
-  currentTitle.textContent = 'Group: ' + gid + (groups[gid].isAdmin ? ' (Admin)' : '');
-  chatSec.classList.remove('hidden');
-  messages.innerHTML = '';
-  membersUl.innerHTML = '';
-  peerGroupLib.requestPeerList(gid);
+function selectGroup(gid) {
+  ui.currentGroup.textContent = gid + (groups[gid].isAdmin?' (Admin)':'');
+  ui.messages.innerHTML = ''; groups[gid].peers = [];
+  pg.requestPeerList(gid);
 }
 
-function updateMembers(gid, list) {
-  if (gid !== activeGroupId) return;
-  membersUl.innerHTML = '';
-  list.forEach(pid => {
-    const li = document.createElement('li');
-    li.textContent = pid;
-    if (groups[gid].isAdmin && pid !== peerGroupLib.peer.id) {
-      const btn = document.createElement('button');
-      btn.textContent = 'Kick';
-      btn.onclick = () => peerGroupLib.ejectPeer(gid, pid);
-      li.appendChild(btn);
-    }
-    membersUl.appendChild(li);
-  });
-}
-
-function appendMessage(gid, sender, text) {
-  if (gid !== activeGroupId) return;
-  const div = document.createElement('div');
-  div.className = 'msg';
-  div.textContent = `${sender}: ${text}`;
-  messages.appendChild(div);
-}
-
-function removeMember(gid, pid) {
-  if (gid === activeGroupId) {
-    const items = Array.from(membersUl.children);
-    items.forEach(li => { if (li.firstChild.textContent === pid) li.remove(); });
+function updateMembers(gid,list) {
+  groups[gid].peers = list;
+  if(ui.currentGroup.textContent.startsWith(gid)) {
+    ui.memberList.innerHTML = '';
+    list.forEach(pid => {
+      const li = document.createElement('li');
+      li.textContent = pid;
+      if(groups[gid].isAdmin && pid!==pg.peer.id) {
+        const btn = document.createElement('button');
+        btn.textContent = 'Kick';
+        btn.onclick = () => pg.ejectPeer(gid,pid);
+        li.append(btn);
+      }
+      ui.memberList.append(li);
+    });
   }
 }
+
+function addMsg(gid,sender,text){
+  if(!ui.currentGroup.textContent.startsWith(gid)) return;
+  const div = document.createElement('div');
+  div.className = 'msg' + (sender===pg.peer.id?' self':'');
+  div.textContent = (sender===pg.peer.id?'Me':sender)+': '+text;
+  ui.messages.append(div);
+  ui.messages.scrollTop = ui.messages.scrollHeight;
+}
+
+// Wire up buttons
+ui.createBtn.onclick =()=>handle(true);
+ui.joinBtn.onclick   =()=>handle(false);
+ui.sendBtn.onclick   =()=>{
+  const txt = ui.msgInput.value.trim();
+  if(!txt) return;
+  const gid = ui.currentGroup.textContent.split(' ')[0];
+  pg.message(gid,{text:txt});
+  addMsg(gid,pg.peer.id,txt);
+  ui.msgInput.value = '';
+};
