@@ -6,16 +6,11 @@ const messagesDiv = document.getElementById('messages');
 const messageInput = document.getElementById('messageInput');
 const sendButton = document.getElementById('sendButton');
 const noPeerMessage = document.getElementById("no-peer-message");
-const localVideo = document.getElementById('localVideo');
-const remoteVideo = document.getElementById('remoteVideo');
-const endCallButton = document.getElementById('endCallButton');
 
 let peer = null;
 let conn = null;
 let isConnected = false;
 let currentContact = null;
-let call;
-let currentStream;
 
 // Local storage keys
 const CONTACTS_KEY = 'contacts';
@@ -123,8 +118,6 @@ function displayContacts() {
         const listItem = document.createElement('li');
         listItem.innerHTML = `
             <span>${contact.displayName}</span>
-            <button class="voice-call-btn" data-id="${contact.peerId}">Voice Call</button>
-            <button class="video-call-btn" data-id="${contact.peerId}">Video Call</button>
             <button class="rename-contact-btn" data-id="${contact.peerId}">Rename</button>
             <button class="delete-contact-btn" data-id="${contact.peerId}">Delete</button>
         `;
@@ -140,20 +133,6 @@ function displayContacts() {
             currentContact = contact;
             noPeerMessage.textContent = `Now connected to peer ${contact.displayName}.`;
             displayContacts();
-        });
-
-        //Voice Call
-        const voiceCallButton = listItem.querySelector('.voice-call-btn');
-        voiceCallButton.addEventListener('click', (event) => {
-            event.stopPropagation(); // Prevent connection attempt
-            startCall(contact.peerId, false);
-        });
-
-        //Video Call
-        const videoCallButton = listItem.querySelector('.video-call-btn');
-        videoCallButton.addEventListener('click', (event) => {
-            event.stopPropagation(); // Prevent connection attempt
-            startCall(contact.peerId, true);
         });
 
         // Rename button click
@@ -240,64 +219,6 @@ function connectToPeer(peerId) {
     });
 }
 
-async function startCall(peerId, video) {
-    if (currentStream) {
-        stopMediaStream(currentStream);
-    }
-
-    try {
-        currentStream = await navigator.mediaDevices.getUserMedia({ video: video, audio: true });
-        localVideo.srcObject = currentStream;
-
-        call = peer.call(peerId, currentStream);
-
-        call.on('stream', function (remoteStream) {
-            remoteVideo.srcObject = remoteStream;
-        });
-
-        call.on('close', () => {
-            stopCall();
-        });
-
-    } catch (err) {
-        console.error('Failed to get local stream', err);
-        alert('Failed to get local stream: ' + err);
-    }
-}
-
-function stopMediaStream(stream) {
-    stream.getTracks().forEach(track => {
-        track.stop();
-    });
-}
-
-function stopCall() {
-    if (call) {
-        call.close();
-    }
-    if (currentStream) {
-        stopMediaStream(currentStream);
-        localVideo.srcObject = null;
-        remoteVideo.srcObject = null;
-    }
-}
-
-//function answerCall(call) {
-    //navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-    //.then(stream => {
-        //localVideo.srcObject = stream;
-        //call.answer(stream); // Answer the call with an A/V stream.
-        //call.on('stream', function(remoteStream) {
-            // Show stream in some video/canvas element.
-            //remoteVideo.srcObject = stream;
-        //});
-    //})
-    //.catch(err => {
-        //console.log('Failed to get local stream', err);
-        //alert('Failed to get local stream: ' + err);
-    //});
-//}
-
 // Run on page load
 window.onload = async function () {
     const peerId = await getOrCreatePeerId();
@@ -313,7 +234,7 @@ window.onload = async function () {
             iceServers: [{
                 urls: ["stun:eu-turn4.xirsys.com"]
             }, {
-                username: "vXp0ehXgRlCJeYdQBR4hjAdVn42ttLfds4jTAVrRmD5RTceXb9qp-sCf1PEw5eWiAAAAAGggndthcmchiemtvc",
+                username: "vXp0ehXgRlCJeYdQBR4hjAdVn42ttLfds4jTAVrRmD5RTceXb9qp-sCf1PEw5eWiAAAAAGggndthcmNoaWVtdG9w",
                 credential: "fab9d62a-2e66-11f0-b4dc-0242ac140004",
                 urls: [
                     "turn:eu-turn4.xirsys.com:80?transport=udp",
@@ -359,11 +280,6 @@ window.onload = async function () {
         });
     });
 
-    //Incoming Call
-    peer.on('call', function(call) {
-        answerCall(call);
-    });
-
     // Listener for the "Add Contact" button
     addContactBtn.addEventListener('click', function () {
         const newContactId = newContactIdInput.value.trim();
@@ -379,11 +295,6 @@ window.onload = async function () {
         if (message) {
             sendMessage(message);
         }
-    });
-
-    //End Call Button
-    endCallButton.addEventListener('click', function() {
-        stopCall();
     });
 
     displayContacts();
