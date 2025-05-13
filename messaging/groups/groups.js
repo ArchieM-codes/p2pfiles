@@ -1,3 +1,20 @@
+const iceServers = [
+  { urls: ["stun:eu-turn4.xirsys.com"] },
+  {
+    username: "vXp0ehXgRlCJeYdQBR4hjAdVn42ttLfds4jTAVrRmD5RTceXb9qp-sCf1PEw5eWiAAAAAGggndthcmNoaWVtdG9w",
+    credential: "fab9d62a-2e66-11f0-b4dc-0242ac140004",
+    urls: [
+      "turn:eu-turn4.xirsys.com:80?transport=udp",
+      "turn:eu-turn4.xirsys.com:3478?transport=udp",
+      "turn:eu-turn4.xirsys.com:80?transport=tcp",
+      "turn:eu-turn4.xirsys.com:3478?transport=tcp",
+      "turns:eu-turn4.xirsys.com:443?transport=tcp",
+      "turns:eu-turn4.xirsys.com:5349?transport=tcp"
+    ]
+  }
+];
+
+
 // Validate AMCG-12345-AB
 const ID_RE = /^AMCG-\d{5}-[A-Za-z]{2}$/;
 
@@ -17,22 +34,7 @@ pg = new PeerGroup(err => err&&console.error(err), {
         secure: true,
         key: 'peerjs',
         debug: 3,
-        config: {
-            iceServers: [{
-                urls: ["stun:eu-turn4.xirsys.com"]
-            }, {
-                username: "vXp0ehXgRlCJeYdQBR4hjAdVn42ttLfds4jTAVrRmD5RTceXb9qp-sCf1PEw5eWiAAAAAGggndthcmNoaWVtdG9w",
-                credential: "fab9d62a-2e66-11f0-b4dc-0242ac140004",
-                urls: [
-                    "turn:eu-turn4.xirsys.com:80?transport=udp",
-                    "turn:eu-turn4.xirsys.com:3478?transport=udp",
-                    "turn:eu-turn4.xirsys.com:80?transport=tcp",
-                    "turn:eu-turn4.xirsys.com:3478?transport=tcp",
-                    "turns:eu-turn4.xirsys.com:443?transport=tcp",
-                    "turns:eu-turn4.xirsys.com:5349?transport=tcp"
-                ]
-            }]
-        }});
+        config: { iceServers });
 
 // Event handlers
 pg.on('joined', ({groupId,creator}) => {
